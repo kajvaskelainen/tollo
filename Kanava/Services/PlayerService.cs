@@ -50,6 +50,9 @@ public sealed class PlayerService : IDisposable
 
     public void Stop(MediaPlayer player) => Enqueue(player.Stop);
 
+    /// <summary>Pysäyttää ja vapauttaa soittimen jonossa (esim. pienoissoittimen suljettaessa).</summary>
+    public void Release(MediaPlayer player) => Enqueue(() => { player.Stop(); player.Dispose(); });
+
     public void Dispose()
     {
         Preview.Stop();

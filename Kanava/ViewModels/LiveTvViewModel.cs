@@ -187,9 +187,51 @@ public partial class LiveTvViewModel : ObservableObject
         if (PlayingChannel == channel) return;
         PlayingChannel = channel;
         Playback.Reset();
-        _session.Player.Play(_session.Player.Preview, _session.Client.LiveUrl(channel.StreamId, _session.Settings.Settings.LiveFormat));
+        _session.Player.Play(ActivePlayer, LiveUrl(channel));
         _session.UserData.AddLiveHistory(channel.StreamId);
         _ = LoadNowNextAsync(channel);
+    }
+
+    private string LiveUrl(LiveChannel c) => _session.Client.LiveUrl(c.StreamId, _session.Settings.Settings.LiveFormat);
+
+    // ---------- Pienoissoitin (PiP) ----------
+
+    private LibVLCSharp.Shared.MediaPlayer? _pipPlayer;
+    /// <summary>Soitin, johon kanavanvaihdot ohjataan: pienoissoitin, jos se on auki, muuten esikatselu.</summary>
+    private LibVLCSharp.Shared.MediaPlayer ActivePlayer => _pipPlayer ?? _session.Player.Preview;
+    public bool IsPip => _pipPlayer is not null;
+
+    /// <summary>Siirtää toiston pienoissoittimen omaan soittimeen (esikatselu pysähtyy).</summary>
+    public void EnterPip(LibVLCSharp.Shared.MediaPlayer player)
+    {
+        _pipPlayer = player;
+        _session.Player.Stop(_session.Player.Preview);
+        if (PlayingChannel is { } ch) _session.Player.Play(player, LiveUrl(ch));
+    }
+
+    /// <summary>Palauttaa toiston esikatseluun (resume = false: ei toistoa, esim. kun PiP suljetaan ikkunan ollessa piilossa).</summary>
+    public void ExitPip(bool resume)
+    {
+        if (_pipPlayer is null) return;
+        _pipPlayer = null;
+        if (resume && PlayingChannel is { } ch) _session.Player.Play(_session.Player.Preview, LiveUrl(ch));
+    }
+
+    /// <summary>Seuraava/edellinen kanava nykyisestä listasta (pienoissoittimen napit).</summary>
+    public void PlayAdjacent(int dir)
+    {
+        var list = Channels;
+        if (list.Count == 0) return;
+        var i = PlayingChannel is null ? -1 : IndexOf(list, PlayingChannel);
+        var next = list[((i < 0 ? (dir > 0 ? -1 : 0) : i) + dir + list.Count) % list.Count];
+        SelectedChannel = next; // käynnistää toiston (OnSelectedChannelChanged)
+        if (IsReorderMode) Play(next);
+    }
+
+    private static int IndexOf(IReadOnlyList<LiveChannel> list, LiveChannel c)
+    {
+        for (var i = 0; i < list.Count; i++) if (ReferenceEquals(list[i], c)) return i;
+        return -1;
     }
 
     [RelayCommand]
@@ -217,7 +259,7 @@ public partial class LiveTvViewModel : ObservableObject
         // Suosikit/historia ovat voineet muuttua muualla
         if (SelectedCategory?.Special is SpecialCategory.Favorites or SpecialCategory.History) ApplyFilter();
         if (PlayingChannel is { } ch)
-            _session.Player.Play(_session.Player.Preview, _session.Client.LiveUrl(ch.StreamId, _session.Settings.Settings.LiveFormat));
+            _session.Player.Play(_session.Player.Preview, LiveUrl(ch));
     }
 
     [RelayCommand]

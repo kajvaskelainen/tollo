@@ -47,6 +47,64 @@ public partial class SettingsViewModel : ObservableObject
         Message = "Striimimuoto vaihdettu – koskee seuraavaa kanavanvaihtoa.";
     }
 
+    // ---------- Pienoissoitin ----------
+
+    private AppSettings S => _session.Settings.Settings;
+
+    private void SetPip(Action<AppSettings> change, string message)
+    {
+        change(S);
+        _session.Settings.Save();
+        OnPropertyChanged(string.Empty); // valintanapit päivittyvät
+        Message = message;
+    }
+
+    private bool Mode(string m) => S.PipMode == m;
+    private void SetMode(string m) => SetPip(s => s.PipMode = m, "Pienoissoittimen asetus tallennettu.");
+    public bool PipOnMinimize { get => Mode("minimize"); set { if (value) SetMode("minimize"); } }
+    public bool PipOnClose { get => Mode("close"); set { if (value) SetMode("close"); } }
+    public bool PipManual { get => Mode("manual"); set { if (value) SetMode("manual"); } }
+
+    private void SetCorner(string c) => SetPip(s => s.PipCorner = c, "Pienoissoittimen paikka tallennettu.");
+    public bool PipTopLeft { get => S.PipCorner == "TopLeft"; set { if (value) SetCorner("TopLeft"); } }
+    public bool PipTopRight { get => S.PipCorner == "TopRight"; set { if (value) SetCorner("TopRight"); } }
+    public bool PipBottomLeft { get => S.PipCorner == "BottomLeft"; set { if (value) SetCorner("BottomLeft"); } }
+    public bool PipBottomRight { get => S.PipCorner == "BottomRight"; set { if (value) SetCorner("BottomRight"); } }
+
+    private void SetSize(string z) => SetPip(s => s.PipSize = z, "Pienoissoittimen koko tallennettu.");
+    public bool PipSmall { get => S.PipSize == "s"; set { if (value) SetSize("s"); } }
+    public bool PipMedium { get => S.PipSize is not ("s" or "l"); set { if (value) SetSize("m"); } }
+    public bool PipLarge { get => S.PipSize == "l"; set { if (value) SetSize("l"); } }
+
+    public bool PipTopmost
+    {
+        get => S.PipTopmost;
+        set => SetPip(s => s.PipTopmost = value, value ? "Pienoissoitin pysyy muiden ikkunoiden päällä." : "Pienoissoitin voi jäädä muiden ikkunoiden alle.");
+    }
+
+    [ObservableProperty] private bool _isReloadingChannels;
+    [ObservableProperty] private string _channelStatus = "";
+
+    /// <summary>Kanavalista ladattu uudelleen – Live TV päivitetään, kun osiota vaihdetaan.</summary>
+    public bool ChannelsReloaded { get; set; }
+
+    [RelayCommand]
+    private async Task ReloadChannels()
+    {
+        if (IsReloadingChannels) return;
+        IsReloadingChannels = true;
+        Message = "";
+        ChannelStatus = "Ladataan kanavalistaa palvelimelta…";
+        try
+        {
+            ChannelStatus = await _session.ReloadLiveAsync();
+            ChannelsReloaded = true;
+            OnPropertyChanged(nameof(Counts));
+        }
+        catch (Exception ex) { ChannelStatus = "Lataus epäonnistui: " + ex.Message; }
+        finally { IsReloadingChannels = false; }
+    }
+
     [RelayCommand]
     private async Task RefreshEpg()
     {

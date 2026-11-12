@@ -240,6 +240,8 @@
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button Style="{StaticResource IconButton}" ToolTip="Pienoissoitin (P)" AutomationProperties.Name="Pienoissoitin"
+                                    Click="OnPip" Content="&#xE8A7;" />
                             <Button Style="{StaticResource IconButton}" ToolTip="Koko näyttö (F)" AutomationProperties.Name="Koko näyttö"
                                     Command="{Binding ToggleFullscreenCommand}" Content="&#xE740;" />
                             <Button Style="{StaticResource HeartButton}" Tag="{Binding PlayingChannel.IsFavorite}" ToolTip="Suosikki"

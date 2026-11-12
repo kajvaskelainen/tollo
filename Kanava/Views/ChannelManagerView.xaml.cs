@@ -47,8 +47,34 @@ public partial class ChannelManagerView : UserControl
             CategoryList.SelectedItem = c;
     }
 
+    private bool _bulkSelect;
+
+    /// <summary>Valitsee kaikki oikeat kategoriat; kanavalista pysyy nykyisessä kategoriassa.</summary>
+    private void OnSelectAllCategories(object sender, RoutedEventArgs e)
+    {
+        _bulkSelect = true;
+        try
+        {
+            CategoryList.UnselectAll();
+            foreach (var c in CategoryList.Items.OfType<ManagedCategory>().Where(c => !c.IsSpecial))
+                CategoryList.SelectedItems.Add(c);
+        }
+        finally { _bulkSelect = false; }
+        UpdateCounts();
+        CategoryList.Focus();
+    }
+
+    private void OnSelectNoCategories(object sender, RoutedEventArgs e)
+    {
+        _bulkSelect = true;
+        try { CategoryList.SelectedItem = Vm?.SelectedCategory; }
+        finally { _bulkSelect = false; }
+        UpdateCounts();
+    }
+
     private void OnCategorySelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_bulkSelect) return;
         // Kanavalista näyttää viimeksi napsautetun kategorian (myös monivalinnassa)
         if (Vm is { } vm && e.AddedItems.Count > 0 && e.AddedItems[^1] is ManagedCategory c && vm.SelectedCategory != c)
             vm.SelectedCategory = c;

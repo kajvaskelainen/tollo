@@ -53,10 +53,50 @@
 
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <TextBlock Text="Ohjelmaopas (EPG)" Style="{StaticResource CardTitle}" />
+                    <TextBlock Text="Pienoissoitin" Style="{StaticResource CardTitle}" />
+                    <TextBlock Text="Live TV jatkuu pienessä ikkunassa näytön kulmassa. Raahaa ikkunaa – se kiinnittyy lähimpään kulmaan. Tuplaklikkaus palauttaa Töllön." TextWrapping="Wrap" Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,0,0,12" />
+                    <TextBlock Text="Avautuu" Style="{StaticResource Dim}" Margin="0,0,0,8" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipMode" Content="Kun ikkuna pienennetään" IsChecked="{Binding PipOnMinimize}" />
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipMode" Content="Pienennettäessä ja suljettaessa" IsChecked="{Binding PipOnClose}" />
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipMode" Content="Vain napista (P)" IsChecked="{Binding PipManual}" />
+                    </WrapPanel>
+                    <TextBlock Text="Suljettaessa: ruksi piilottaa Töllön ja kanava jatkuu pienoissoittimessa. Ohjelma sulkeutuu, kun suljet pienoissoittimen." TextWrapping="Wrap" Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,8,0,14" />
+                    <TextBlock Text="Paikka" Style="{StaticResource Dim}" Margin="0,0,0,8" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipCorner" Content="Vasen yläkulma" IsChecked="{Binding PipTopLeft}" />
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipCorner" Content="Oikea yläkulma" IsChecked="{Binding PipTopRight}" />
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipCorner" Content="Vasen alakulma" IsChecked="{Binding PipBottomLeft}" />
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipCorner" Content="Oikea alakulma" IsChecked="{Binding PipBottomRight}" />
+                    </WrapPanel>
+                    <TextBlock Text="Koko" Style="{StaticResource Dim}" Margin="0,14,0,8" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipSize" Content="Pieni" IsChecked="{Binding PipSmall}" />
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipSize" Content="Keskikokoinen" IsChecked="{Binding PipMedium}" />
+                        <RadioButton Style="{StaticResource TabItemRadio}" GroupName="PipSize" Content="Suuri" IsChecked="{Binding PipLarge}" />
+                    </WrapPanel>
+                    <CheckBox Content="Pysy aina muiden ikkunoiden päällä" IsChecked="{Binding PipTopmost}" Margin="0,14,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Kanavalista ja ohjelmaopas" Style="{StaticResource CardTitle}" />
                     <TextBlock Text="{Binding EpgStatus}" Style="{StaticResource Dim}" Margin="0,0,0,4" />
-                    <TextBlock Text="Opas päivittyy automaattisesti kerran vuorokaudessa ja tallennetaan välimuistiin." Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,0,0,12" />
-                    <Button Content="Päivitä opas nyt" HorizontalAlignment="Left" Command="{Binding RefreshEpgCommand}" />
+                    <TextBlock Text="Opas päivittyy automaattisesti kerran vuorokaudessa ja tallennetaan välimuistiin. Lataa kanavalista uudelleen, jos palveluntarjoaja on lisännyt kanavia – piilotukset, järjestykset ja suosikit säilyvät." TextWrapping="Wrap" Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,0,0,12" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Lataa kanavalista uudelleen" Command="{Binding ReloadChannelsCommand}" Margin="0,0,10,0" />
+                        <Button Content="Päivitä opas nyt" Command="{Binding RefreshEpgCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding ChannelStatus}" Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,10,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </StackPanel>
             </Border>
 

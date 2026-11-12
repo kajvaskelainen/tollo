@@ -70,6 +70,8 @@ public partial class LiveTvView : UserControl
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr h, int i);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int i, int v);
 
+    private void OnPip(object sender, RoutedEventArgs e) => (Window.GetWindow(this) as MainWindow)?.OpenPipManually();
+
     private void AttachPlayer()
     {
         if (_vm is not null && Video.MediaPlayer is null)

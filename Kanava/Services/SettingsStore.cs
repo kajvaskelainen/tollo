@@ -68,6 +68,15 @@ public sealed class AppSettings
     public bool CheckUpdates { get; set; } = true;
     /// <summary>Versio, jota käyttäjä pyysi olemaan tarjoamatta.</summary>
     public string SkippedVersion { get; set; } = "";
+
+    // ---------- Pienoissoitin (PiP) ----------
+    /// <summary>Milloin pienoissoitin avautuu: "minimize", "close" (myös suljettaessa) tai "manual" (vain painikkeesta).</summary>
+    public string PipMode { get; set; } = "minimize";
+    /// <summary>TopLeft, TopRight, BottomLeft tai BottomRight.</summary>
+    public string PipCorner { get; set; } = "BottomRight";
+    /// <summary>"s", "m" tai "l".</summary>
+    public string PipSize { get; set; } = "m";
+    public bool PipTopmost { get; set; } = true;
 }
 
 /// <summary>Asetusten ja kirjautumistietojen tallennus %AppData%\Tollo -kansioon.</summary>

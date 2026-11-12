@@ -76,11 +76,13 @@ dotnet run --project MockXtream -- 8085
 | `Services/ImageCache.cs` | Logojen/julisteiden asynkroninen lataus ja välimuisti |
 | `Controls/EpgGrid.cs` | Itse piirtävä, virtualisoitu TV-opasruudukko (synkronoitu vieritys) |
 | `Controls/CornerMask.cs` | Pyöristetyt kulmat videolle VideoView:n overlayssa (airspace) |
+| `Views/PipWindow.xaml` | Pienoissoitin: aina päällimmäinen kulmaikkuna omalla soittimellaan |
 | `ViewModels/`, `Views/` | MVVM-näkymät: kirjautuminen, Live TV, elokuvat, sarjat, haku, suosikit, asetukset |
 
 ## Pikanäppäimet
 
-- Live TV: klikkaus = esikatselu, tuplaklikkaus / F / F11 = koko näyttö, Esc = takaisin
+- Live TV: klikkaus = esikatselu, tuplaklikkaus / F / F11 = koko näyttö, Esc = takaisin, P = pienoissoitin
+- Pienoissoitin: raahaa = siirrä kulmaan, rulla = äänenvoimakkuus, tuplaklikkaus = takaisin Töllöön
 - TV-opas: rulla = kanavat, Shift+rulla tai vetäminen = aika, ↑↓ = kanava, Enter = koko näyttö
 - Elokuvat/jaksot: välilyönti = tauko, ← −10 s, → +30 s, ↑↓ = äänenvoimakkuus, Esc = sulje
 

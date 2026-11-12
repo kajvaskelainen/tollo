@@ -80,6 +80,11 @@ public partial class MainViewModel : ObservableObject
     {
         // Kanavien hallinnan muutokset (piilotus, järjestys, uusi lista) näkyviin Live TV:hen
         if (CurrentPage is ChannelManagerViewModel { IsDirty: true }) LiveTv?.Reload();
+        else if (CurrentPage is SettingsViewModel { ChannelsReloaded: true } settings)
+        {
+            settings.ChannelsReloaded = false;
+            LiveTv?.Reload();
+        }
         CurrentPage = newValue == Section.LiveTv ? null : CreatePage(newValue);
         if (LiveTv is null) return;
         if (oldValue == Section.LiveTv && newValue != Section.LiveTv) LiveTv.Suspend();

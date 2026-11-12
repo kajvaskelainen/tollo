@@ -327,17 +327,10 @@ public partial class ChannelManagerViewModel : ObservableObject
         Status = "Ladataan kanavalistaa palvelimelta…";
         try
         {
-            var before = _session.LiveChannels.Select(c => c.StreamId).ToHashSet();
-            var beforeCats = _session.LiveCategories.Count;
-            await _session.LoadLiveAsync();
-            var added = _session.LiveChannels.Count(c => !before.Contains(c.StreamId));
-            var removed = before.Count - _session.LiveChannels.Count(c => before.Contains(c.StreamId));
+            var summary = await _session.ReloadLiveAsync();
             BuildCategories();
             BuildChannels();
-            Changed($"Kanavalista ladattu: {_session.LiveChannels.Count} kanavaa, {_session.LiveCategories.Count} kategoriaa"
-                    + (added > 0 ? $", {added} uutta" : "") + (removed > 0 ? $", {removed} poistunut" : "")
-                    + (added == 0 && removed == 0 ? " – ei muutoksia." : "."));
-            _ = _session.Epg.LoadAsync(force: false);
+            Changed(summary);
         }
         catch (Exception ex) { Status = "Lataus epäonnistui: " + ex.Message; }
         finally { IsReloading = false; }

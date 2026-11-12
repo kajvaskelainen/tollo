@@ -88,6 +88,19 @@ public sealed class AppSession
         LiveById = channels.GroupBy(c => c.StreamId).ToDictionary(g => g.Key, g => g.First());
     }
 
+    /// <summary>Hakee kanavalistan uudelleen ja palauttaa yhteenvedon muutoksista.</summary>
+    public async Task<string> ReloadLiveAsync()
+    {
+        var before = LiveChannels.Select(c => c.StreamId).ToHashSet();
+        await LoadLiveAsync();
+        var added = LiveChannels.Count(c => !before.Contains(c.StreamId));
+        var removed = before.Count - LiveChannels.Count(c => before.Contains(c.StreamId));
+        _ = Epg.LoadAsync(force: false);
+        return $"Kanavalista ladattu: {LiveChannels.Count} kanavaa, {LiveCategories.Count} kategoriaa"
+               + (added > 0 ? $", {added} uutta" : "") + (removed > 0 ? $", {removed} poistunut" : "")
+               + (added == 0 && removed == 0 ? " – ei muutoksia." : ".");
+    }
+
     // ---------- Piilotus ja järjestys (Live TV, opas, haku ja kanavien hallinta käyttävät näitä) ----------
 
     /// <summary>Kanava näkyy, jos sitä tai sen kategoriaa ei ole piilotettu.</summary>

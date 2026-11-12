@@ -1,0 +1,56 @@
+<Window x:Class="Kanava.Views.PipWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
+        Title="Töllö – pienoissoitin" Background="Black" WindowStyle="None" ResizeMode="NoResize"
+        ShowInTaskbar="False" ShowActivated="False" Topmost="True" Width="420" Height="236"
+        FontFamily="Segoe UI Variable Text, Segoe UI" WindowStartupLocation="Manual">
+    <vlc:VideoView x:Name="Video" Background="Black">
+        <!-- Ohjaimet VideoView:n overlay-ikkunassa (airspace); näkyvät, kun hiiri on päällä -->
+        <Grid x:Name="Overlay" Background="#01000000" MouseLeftButtonDown="OnOverlayDown"
+              MouseEnter="OnOverlayEnter" MouseLeave="OnOverlayLeave" MouseWheel="OnWheel">
+            <TextBlock x:Name="StatusText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#AAA" FontSize="13" Text="Ladataan…" />
+
+            <Grid x:Name="Controls" Visibility="Collapsed">
+                <!-- Yläpalkki: kanava ja ohjelma, palautus ja sulkeminen -->
+                <Border VerticalAlignment="Top" Padding="10,6,6,18">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#CC000000" Offset="0" />
+                            <GradientStop Color="#00000000" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Foreground="White" FontSize="12"
+                                Content="&#xE8BB;" Click="OnCloseClick" ToolTip="Sulje pienoissoitin" AutomationProperties.Name="Sulje pienoissoitin" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Foreground="White" FontSize="13"
+                                Content="&#xE73F;" Click="OnRestoreClick" ToolTip="Palaa Töllöön (tuplaklikkaus)" AutomationProperties.Name="Palaa Töllöön" />
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,6,0">
+                            <TextBlock Text="{Binding PlayingChannel.Name}" Foreground="White" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding NowProgram.Title}" Foreground="#CCC" FontSize="11.5" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Alapalkki: kanavanvaihto ja ääni -->
+                <Border VerticalAlignment="Bottom" Padding="8,18,8,6">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#00000000" Offset="0" />
+                            <GradientStop Color="#CC000000" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Style="{StaticResource IconButton}" Foreground="White" Content="&#xE892;" Click="OnPrevClick"
+                                ToolTip="Edellinen kanava" AutomationProperties.Name="Edellinen kanava" />
+                        <Button x:Name="MuteButton" Style="{StaticResource IconButton}" Foreground="White" Margin="8,0"
+                                Content="{Binding VolumeGlyph}" Command="{Binding ToggleMuteCommand}"
+                                ToolTip="Mykistä (rulla säätää äänenvoimakkuutta)" AutomationProperties.Name="Mykistä" />
+                        <Button Style="{StaticResource IconButton}" Foreground="White" Content="&#xE893;" Click="OnNextClick"
+                                ToolTip="Seuraava kanava" AutomationProperties.Name="Seuraava kanava" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </vlc:VideoView>
+</Window>

@@ -101,6 +101,9 @@
                     <TextBlock Text="KATEGORIAT" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" />
                 </DockPanel>
                 <WrapPanel DockPanel.Dock="Top">
+                    <Button Style="{StaticResource Tool}" Click="OnSelectAllCategories" AutomationProperties.Name="Valitse kaikki kategoriat"
+                            ToolTip="Valitse kaikki kategoriat (ei Kaikki kanavat / Suosikit)"><TextBlock Text="Valitse kaikki" /></Button>
+                    <Button Style="{StaticResource Tool}" Click="OnSelectNoCategories" Margin="0,0,16,6" AutomationProperties.Name="Poista kategorioiden valinnat"><TextBlock Text="Poista valinnat" /></Button>
                     <Button Style="{StaticResource Tool}" Command="{Binding HideCategoriesCommand}" CommandParameter="{Binding SelectedItems, ElementName=CategoryList}"
                             ToolTip="Piilota valitut kategoriat ja niiden kanavat" AutomationProperties.Name="Piilota kategoriat">
                         <StackPanel Orientation="Horizontal"><TextBlock Text="&#xED1A;" Style="{StaticResource Icon}" FontSize="12" Margin="0,0,6,0" /><TextBlock Text="Piilota" /></StackPanel>
@@ -176,7 +179,7 @@
                     </TextBlock>
                 </DockPanel>
                 <WrapPanel DockPanel.Dock="Top">
-                    <Button Style="{StaticResource Tool}"  Click="OnSelectAllChannels"><TextBlock Text="Valitse kaikki" /></Button>
+                    <Button Style="{StaticResource Tool}"  Click="OnSelectAllChannels" AutomationProperties.Name="Valitse kaikki kanavat"><TextBlock Text="Valitse kaikki" /></Button>
                     <Button Style="{StaticResource Tool}"  Click="OnSelectNoChannels" Margin="0,0,16,6"><TextBlock Text="Poista valinnat" /></Button>
                     <Button Style="{StaticResource Tool}" Command="{Binding HideChannelsCommand}" CommandParameter="{Binding SelectedItems, ElementName=ChannelList}"
                             ToolTip="Piilota valitut kanavat (Delete)" AutomationProperties.Name="Piilota kanavat">
