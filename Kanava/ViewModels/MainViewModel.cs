@@ -27,11 +27,15 @@ public partial class MainViewModel : ObservableObject
         _settings = settings;
         _player = player;
         Login = new LoginViewModel(settings, OnLoggedInAsync);
+        Updates = new UpdateViewModel(settings);
     }
+
+    public UpdateViewModel Updates { get; }
 
     /// <summary>Automaattinen kirjautuminen tallennetuilla tunnuksilla.</summary>
     public async Task StartAsync(Credentials? commandLine)
     {
+        _ = Updates.StartupCheckAsync();
         var creds = commandLine ?? _settings.GetSavedCredentials();
         if (creds is not null) await Login.TryLoginAsync(creds, save: commandLine is not null);
     }
@@ -95,7 +99,7 @@ public partial class MainViewModel : ObservableObject
             Section.Movies => _movies ??= new MoviesViewModel(s, this),
             Section.Series => _series ??= new SeriesViewModel(s, this),
             Section.Search => _search ??= new SearchViewModel(s, this),
-            Section.Settings => _settingsVm ??= new SettingsViewModel(s),
+            Section.Settings => _settingsVm ??= new SettingsViewModel(s, Updates),
             Section.Favorites => new FavoritesViewModel(s, this),
             _ => null,
         };

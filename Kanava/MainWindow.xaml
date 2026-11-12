@@ -1,4 +1,4 @@
-﻿<Window x:Class="Kanava.MainWindow"
+<Window x:Class="Kanava.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:Kanava.Views"
@@ -28,6 +28,35 @@
             <TextBlock Text="{Binding}" Style="{StaticResource Dim}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="15" />
         </DataTemplate>
     </Window.Resources>
+    <DockPanel>
+    <!-- ===== Päivitysilmoitus ===== -->
+    <Border DockPanel.Dock="Top" DataContext="{Binding Updates}" Background="#2A1012" BorderBrush="{StaticResource AccentBrush}" BorderThickness="0,0,0,1"
+            Padding="18,8" Visibility="{Binding IsBannerVisible, Converter={StaticResource BoolToVis}}">
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" Command="{Binding DismissCommand}"
+                    ToolTip="Sulje" AutomationProperties.Name="Sulje päivitysilmoitus" Margin="8,0,0,0"
+                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}, ConverterParameter=!}" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                        Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}, ConverterParameter=!}">
+                <Button Style="{StaticResource GhostButton}" Content="Ohita tämä versio" Command="{Binding SkipCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource GhostButton}" Content="Mitä uutta?" Command="{Binding OpenNotesCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource PrimaryButton}" Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" AutomationProperties.Name="Päivitä" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="&#xE896;" Style="{StaticResource Icon}" Foreground="{StaticResource AccentBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                <TextBlock VerticalAlignment="Center" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}, ConverterParameter=!}">
+                    <Run Text="Töllöstä on saatavilla uusi versio" /> <Run Text="{Binding AvailableVersion, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="." />
+                    <Run Text="{Binding CurrentVersion, Mode=OneWay, StringFormat=(käytössä {0})}" Foreground="{StaticResource TextDimBrush}" />
+                </TextBlock>
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                <ProgressBar Width="220" Height="6" Maximum="1" Value="{Binding Progress}" Margin="14,0,0,0" VerticalAlignment="Center"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                <TextBlock Text="{Binding Error}" Foreground="{StaticResource ErrorBrush}" Margin="14,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Visibility="{Binding Error, Converter={StaticResource NullToVis}}" />
+            </StackPanel>
+        </DockPanel>
+    </Border>
+
     <Grid>
         <!-- Kirjautuminen -->
         <views:LoginView DataContext="{Binding Login}"
@@ -115,4 +144,5 @@
             </Grid>
         </Grid>
     </Grid>
+    </DockPanel>
 </Window>

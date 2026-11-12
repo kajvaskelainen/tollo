@@ -55,6 +55,10 @@ public sealed class AppSettings
     public string PreferredAudioLanguage { get; set; } = "";
     /// <summary>Viimeksi valittu tekstityskieli ("" = ei tekstitystä).</summary>
     public string PreferredSubtitleLanguage { get; set; } = "";
+    /// <summary>Tarkistetaanko päivitykset käynnistyksessä.</summary>
+    public bool CheckUpdates { get; set; } = true;
+    /// <summary>Versio, jota käyttäjä pyysi olemaan tarjoamatta.</summary>
+    public string SkippedVersion { get; set; } = "";
 }
 
 /// <summary>Asetusten ja kirjautumistietojen tallennus %AppData%\Tollo -kansioon.</summary>
