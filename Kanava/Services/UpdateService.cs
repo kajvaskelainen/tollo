@@ -23,18 +23,19 @@ public static class UpdateService
     private const string ExeName = "Tollo.exe";
     private const string OldSuffix = ".old";
 
+    // Huom: CurrentVersion on alustettava ennen Http-asiakasta (staattisten kenttien järjestys)
+    public static Version CurrentVersion { get; } =
+        Normalize(typeof(UpdateService).Assembly.GetName().Version ?? new Version(1, 0, 0));
+
     private static readonly HttpClient Http = CreateClient();
 
     private static HttpClient CreateClient()
     {
         var h = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-        h.DefaultRequestHeaders.UserAgent.ParseAdd($"Tollo/{CurrentVersion}");
+        h.DefaultRequestHeaders.UserAgent.ParseAdd($"Tollo/{CurrentVersion.ToString(3)}");
         h.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return h;
     }
-
-    public static Version CurrentVersion { get; } =
-        Normalize(typeof(UpdateService).Assembly.GetName().Version ?? new Version(1, 0, 0));
 
     private static Version Normalize(Version v) => new(v.Major, v.Minor, Math.Max(0, v.Build));
 
