@@ -87,4 +87,48 @@ public sealed class AppSession
         LiveChannels = channels;
         LiveById = channels.GroupBy(c => c.StreamId).ToDictionary(g => g.Key, g => g.First());
     }
+
+    // ---------- Piilotus ja järjestys (Live TV, opas, haku ja kanavien hallinta käyttävät näitä) ----------
+
+    /// <summary>Kanava näkyy, jos sitä tai sen kategoriaa ei ole piilotettu.</summary>
+    public bool IsVisible(LiveChannel c) => !UserData.IsLiveHidden(c.StreamId) && !UserData.IsLiveCategoryHidden(c.CategoryId);
+
+    public IEnumerable<LiveChannel> VisibleLiveChannels => LiveChannels.Where(IsVisible);
+
+    public IEnumerable<Category> VisibleLiveCategories => LiveCategories.Where(c => !UserData.IsLiveCategoryHidden(c.Id));
+
+    /// <summary>Kaikki live-kategoriat (myös piilotetut) käyttäjän järjestyksessä.</summary>
+    public List<Category> OrderedLiveCategories() =>
+        UserDataStore.ApplyOrder(LiveCategories, UserData.GetCategoryOrder("live"), c => c.Id);
+
+    /// <summary>
+    /// Avaimen ("__all", "__fav" tai kategorian id) kanavat käyttäjän järjestyksessä.
+    /// </summary>
+    public List<LiveChannel> OrderedChannels(string key, bool includeHidden)
+    {
+        var list = key switch
+        {
+            "__all" => UserDataStore.ApplyOrder(LiveChannels, UserData.GetChannelOrder("__all"), c => c.StreamId),
+            "__fav" => UserDataStore.ApplyOrder(LiveChannels.Where(c => c.IsFavorite), UserData.FavoriteLiveOrder, c => c.StreamId),
+            _ => UserDataStore.ApplyOrder(LiveChannels.Where(c => c.CategoryId == key), UserData.GetChannelOrder(key), c => c.StreamId),
+        };
+        return includeHidden ? list : list.Where(IsVisible).ToList();
+    }
+
+    /// <summary>
+    /// Tallentaa kanavajärjestyksen. <paramref name="order"/> voi sisältää vain näkyvät kanavat:
+    /// piilotetut pysyvät aiemmilla paikoillaan (eivätkä esim. putoa suosikeista).
+    /// </summary>
+    public void SaveChannelOrder(string key, IReadOnlyList<int> order)
+    {
+        var full = OrderedChannels(key, includeHidden: true).Select(c => c.StreamId).ToList();
+        UserData.SetChannelOrder(key, UserDataStore.MergeOrder(full, order));
+    }
+
+    /// <summary>Tallentaa kategoriajärjestyksen; piilotetut kategoriat pysyvät paikoillaan.</summary>
+    public void SaveLiveCategoryOrder(IReadOnlyList<string> order)
+    {
+        var full = OrderedLiveCategories().Select(c => c.Id).ToList();
+        UserData.SetCategoryOrder("live", UserDataStore.MergeOrder(full, order));
+    }
 }

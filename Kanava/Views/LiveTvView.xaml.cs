@@ -169,6 +169,11 @@ public partial class LiveTvView : UserControl
 
     private void OnGuideNow(object sender, RoutedEventArgs e) => Guide.ScrollToNow();
 
+    private void OnManageChannels(object sender, RoutedEventArgs e)
+    {
+        if (Window.GetWindow(this)?.DataContext is MainViewModel main) main.Navigate(Section.ChannelManager);
+    }
+
     private void OnCardDoubleClick(object sender, MouseButtonEventArgs e)
     {
         // Vain jos tuplaklikattiin korttia (ei vierityspalkkia tai sydäntä)

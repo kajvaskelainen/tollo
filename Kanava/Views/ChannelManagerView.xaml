@@ -1,0 +1,267 @@
+<UserControl x:Class="Kanava.Views.ChannelManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:svc="clr-namespace:Kanava.Services"
+             xmlns:ctl="clr-namespace:Kanava.Controls">
+    <UserControl.Resources>
+        <!-- Työkalupalkin painike: ikoni + teksti -->
+        <Style x:Key="Tool" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="Focusable" Value="False" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.35" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Listarivi: valinta, hover ja raahauksen pudotuskohta -->
+        <Style x:Key="Row" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="b" Background="Transparent" CornerRadius="5" Padding="8,3" Margin="0,1"
+                                BorderThickness="0,2,0,0" BorderBrush="Transparent">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource SurfaceBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                            </Trigger>
+                            <Trigger Property="ctl:ReorderBehavior.IsDropTarget" Value="True">
+                                <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="List" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="SelectionMode" Value="Extended" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource Row}" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+            <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        </Style>
+
+        <Style x:Key="Badge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="#333" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource BgBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="360" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ===== Yläpalkki ===== -->
+        <DockPanel Grid.ColumnSpan="2" Margin="24,16,24,14">
+            <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}" Content="&#xE72B;" Command="{Binding BackCommand}"
+                    ToolTip="Takaisin Live TV:hen" AutomationProperties.Name="Takaisin Live TV:hen" Margin="0,0,12,0" VerticalAlignment="Center" />
+            <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Command="{Binding ReloadChannelsCommand}" Padding="12,7"
+                    VerticalAlignment="Center" AutomationProperties.Name="Lataa kanavalista uudelleen"
+                    ToolTip="Hakee kanavat ja kategoriat palvelimelta uudelleen. Piilotukset, järjestykset ja suosikit säilyvät.">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE72C;" Style="{StaticResource Icon}" FontSize="13" Margin="0,0,8,0" />
+                    <TextBlock Text="Lataa kanavalista uudelleen" />
+                </StackPanel>
+            </Button>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Kanavien hallinta" Style="{StaticResource H1}" />
+                <TextBlock Text="{Binding Summary}" Style="{StaticResource Dim}" FontSize="12" Margin="0,2,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- ===== Kategoriat ===== -->
+        <Border Grid.Row="1" Background="{StaticResource PanelBrush}" CornerRadius="10" Margin="24,0,8,0" Padding="14,12">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="2,0,0,8">
+                    <TextBlock x:Name="CategoryCount" DockPanel.Dock="Right" Style="{StaticResource Dim}" FontSize="12" VerticalAlignment="Center" />
+                    <TextBlock Text="KATEGORIAT" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" />
+                </DockPanel>
+                <WrapPanel DockPanel.Dock="Top">
+                    <Button Style="{StaticResource Tool}" Command="{Binding HideCategoriesCommand}" CommandParameter="{Binding SelectedItems, ElementName=CategoryList}"
+                            ToolTip="Piilota valitut kategoriat ja niiden kanavat" AutomationProperties.Name="Piilota kategoriat">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xED1A;" Style="{StaticResource Icon}" FontSize="12" Margin="0,0,6,0" /><TextBlock Text="Piilota" /></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Tool}" Command="{Binding ShowCategoriesCommand}" CommandParameter="{Binding SelectedItems, ElementName=CategoryList}"
+                            ToolTip="Näytä valitut kategoriat" AutomationProperties.Name="Näytä kategoriat">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE890;" Style="{StaticResource Icon}" FontSize="12" Margin="0,0,6,0" /><TextBlock Text="Näytä" /></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Tool}" Content="&#xE74A;" FontFamily="{StaticResource IconFont}" Command="{Binding MoveCategoriesUpCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=CategoryList}" ToolTip="Siirrä ylös (Alt+↑)" AutomationProperties.Name="Kategoriat ylös" />
+                    <Button Style="{StaticResource Tool}" Content="&#xE74B;" FontFamily="{StaticResource IconFont}" Command="{Binding MoveCategoriesDownCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=CategoryList}" ToolTip="Siirrä alas (Alt+↓)" AutomationProperties.Name="Kategoriat alas" />
+                    <Button Style="{StaticResource Tool}"  Command="{Binding MoveCategoriesTopCommand}" CommandParameter="{Binding SelectedItems, ElementName=CategoryList}"><TextBlock Text="Alkuun" /></Button>
+                    <Button Style="{StaticResource Tool}"  Command="{Binding MoveCategoriesBottomCommand}" CommandParameter="{Binding SelectedItems, ElementName=CategoryList}"><TextBlock Text="Loppuun" /></Button>
+                    <Button Style="{StaticResource Tool}" Content="&#xE7A7;" FontFamily="{StaticResource IconFont}" Command="{Binding ResetCategoryOrderCommand}"
+                            ToolTip="Palauta kategorioiden palvelimen järjestys" AutomationProperties.Name="Palauta kategorioiden järjestys" />
+                </WrapPanel>
+                <ListBox x:Name="CategoryList" Style="{StaticResource List}" ItemsSource="{Binding Categories}" Margin="0,4,0,0"
+                         SelectionChanged="OnCategorySelectionChanged" PreviewKeyDown="OnCategoryKey">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Focusable="False" VerticalAlignment="Center"
+                                          IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSpecial}" Value="True">
+                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Border Style="{StaticResource Badge}" Visibility="{Binding IsHidden, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="Piilotettu" FontSize="10" Foreground="{StaticResource TextDimBrush}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Text="{Binding CountText}" Style="{StaticResource Dim}" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource Row}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsHidden}" Value="True">
+                                    <Setter Property="Opacity" Value="0.5" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Kanavat ===== -->
+        <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource PanelBrush}" CornerRadius="10" Margin="8,0,24,0" Padding="14,12">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="2,0,0,8">
+                    <TextBox DockPanel.Dock="Right" Width="240" Style="{StaticResource SearchBox}" Tag="Hae kanavaa…"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}" />
+                    <TextBlock x:Name="ChannelCount" DockPanel.Dock="Right" Style="{StaticResource Dim}" FontSize="12" VerticalAlignment="Center" Margin="0,0,14,0" />
+                    <TextBlock VerticalAlignment="Center">
+                        <Run Text="KANAVAT" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextFaintBrush}" />
+                        <Run Text="  " /><Run Text="{Binding SelectedCategory.Name, Mode=OneWay}" FontSize="14" FontWeight="SemiBold" />
+                    </TextBlock>
+                </DockPanel>
+                <WrapPanel DockPanel.Dock="Top">
+                    <Button Style="{StaticResource Tool}"  Click="OnSelectAllChannels"><TextBlock Text="Valitse kaikki" /></Button>
+                    <Button Style="{StaticResource Tool}"  Click="OnSelectNoChannels" Margin="0,0,16,6"><TextBlock Text="Poista valinnat" /></Button>
+                    <Button Style="{StaticResource Tool}" Command="{Binding HideChannelsCommand}" CommandParameter="{Binding SelectedItems, ElementName=ChannelList}"
+                            ToolTip="Piilota valitut kanavat (Delete)" AutomationProperties.Name="Piilota kanavat">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xED1A;" Style="{StaticResource Icon}" FontSize="12" Margin="0,0,6,0" /><TextBlock Text="Piilota" /></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Tool}" Command="{Binding ShowChannelsCommand}" CommandParameter="{Binding SelectedItems, ElementName=ChannelList}"
+                            ToolTip="Näytä valitut kanavat" AutomationProperties.Name="Näytä kanavat">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE890;" Style="{StaticResource Icon}" FontSize="12" Margin="0,0,6,0" /><TextBlock Text="Näytä" /></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Tool}" Command="{Binding AddFavoritesCommand}" CommandParameter="{Binding SelectedItems, ElementName=ChannelList}"
+                            AutomationProperties.Name="Lisää suosikkeihin">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEB52;" Style="{StaticResource Icon}" FontSize="12" Foreground="{StaticResource AccentBrush}" Margin="0,0,6,0" /><TextBlock Text="Suosikkeihin" /></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Tool}" Command="{Binding RemoveFavoritesCommand}" CommandParameter="{Binding SelectedItems, ElementName=ChannelList}"
+                            AutomationProperties.Name="Poista suosikeista" Margin="0,0,16,6">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xEB51;" Style="{StaticResource Icon}" FontSize="12" Margin="0,0,6,0" /><TextBlock Text="Pois suosikeista" /></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Tool}" Content="&#xE74A;" FontFamily="{StaticResource IconFont}" Command="{Binding MoveChannelsUpCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=ChannelList}" IsEnabled="{Binding CanMoveChannels}"
+                            ToolTip="Siirrä ylös (Alt+↑)" AutomationProperties.Name="Kanavat ylös" />
+                    <Button Style="{StaticResource Tool}" Content="&#xE74B;" FontFamily="{StaticResource IconFont}" Command="{Binding MoveChannelsDownCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=ChannelList}" IsEnabled="{Binding CanMoveChannels}"
+                            ToolTip="Siirrä alas (Alt+↓)" AutomationProperties.Name="Kanavat alas" />
+                    <Button Style="{StaticResource Tool}"  Command="{Binding MoveChannelsTopCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=ChannelList}" IsEnabled="{Binding CanMoveChannels}"><TextBlock Text="Alkuun" /></Button>
+                    <Button Style="{StaticResource Tool}"  Command="{Binding MoveChannelsBottomCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=ChannelList}" IsEnabled="{Binding CanMoveChannels}"><TextBlock Text="Loppuun" /></Button>
+                    <Button Style="{StaticResource Tool}" Content="&#xE7A7;" FontFamily="{StaticResource IconFont}" Command="{Binding ResetChannelOrderCommand}"
+                            ToolTip="Palauta tämän listan palvelimen järjestys" AutomationProperties.Name="Palauta kanavien järjestys" />
+                </WrapPanel>
+                <ListBox x:Name="ChannelList" Style="{StaticResource List}" ItemsSource="{Binding Channels}" Margin="0,4,0,0"
+                         SelectionChanged="OnChannelSelectionChanged" PreviewKeyDown="OnChannelKey">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Height="30">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="48" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Focusable="False" VerticalAlignment="Center"
+                                          IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
+                                <Border Grid.Column="1" Width="36" Height="26" CornerRadius="4" Background="#262626" HorizontalAlignment="Left">
+                                    <Image Margin="2" svc:ImageCache.Url="{Binding Channel.Logo}" svc:ImageCache.DecodeWidth="72" />
+                                </Border>
+                                <TextBlock Grid.Column="2" Text="{Binding Channel.NumberText}" Style="{StaticResource Dim}" FontSize="12" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="3" Text="{Binding Channel.Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding CategoryName}" Style="{StaticResource Dim}" FontSize="11" MaxWidth="200" TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding DataContext.ShowCategoryColumn, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource BoolToVis}}" />
+                                    <Border Style="{StaticResource Badge}" Visibility="{Binding IsHidden, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="Piilotettu" FontSize="10" Foreground="{StaticResource TextDimBrush}" />
+                                    </Border>
+                                    <Border Style="{StaticResource Badge}" Visibility="{Binding IsCategoryHidden, Converter={StaticResource BoolToVis}}"
+                                            ToolTip="Kanava ei näy, koska sen kategoria on piilotettu">
+                                        <TextBlock Text="Kategoria piilossa" FontSize="10" Foreground="{StaticResource TextDimBrush}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Grid.Column="5" Text="&#xEB52;" Style="{StaticResource Icon}" FontSize="12" Foreground="{StaticResource AccentBrush}"
+                                           Margin="10,0,4,0" VerticalAlignment="Center" ToolTip="Suosikki"
+                                           Visibility="{Binding Channel.IsFavorite, Converter={StaticResource BoolToVis}}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource Row}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsEffectivelyHidden}" Value="True">
+                                    <Setter Property="Opacity" Value="0.5" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Tilarivi ===== -->
+        <DockPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="26,10,24,14">
+            <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource TextFaintBrush}" FontSize="11" VerticalAlignment="Center"
+                       Text="Ctrl/Shift+klikkaus = monivalinta · Ctrl+A = kaikki · raahaa riviä siirtääksesi · Delete = piilota · Alt+↑↓ = siirrä" />
+            <TextBlock Text="{Binding Status}" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+    </Grid>
+</UserControl>

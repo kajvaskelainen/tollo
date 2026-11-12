@@ -52,6 +52,13 @@
                              IsChecked="{Binding SelectedTab, Converter={StaticResource Equals}, ConverterParameter=1}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0">
+                <Button Style="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,0" Click="OnManageChannels"
+                        AutomationProperties.Name="Hallitse kanavia" ToolTip="Piilota, järjestä ja lataa kanavia uudelleen – myös useita kerralla">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE713;" Style="{StaticResource Icon}" FontSize="13" Margin="0,0,6,0" />
+                        <TextBlock Text="Hallitse kanavia" />
+                    </StackPanel>
+                </Button>
                 <!-- Järjestystilan painikkeet -->
                 <Button Style="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,8,0" Command="{Binding ResetChannelOrderCommand}"
                         Visibility="{Binding IsReorderMode, Converter={StaticResource BoolToVis}}" ToolTip="Palauttaa tämän kategorian kanavat palvelimen järjestykseen">

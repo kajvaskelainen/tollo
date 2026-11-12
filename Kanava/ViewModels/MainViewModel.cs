@@ -6,7 +6,7 @@ using Kanava.Services;
 
 namespace Kanava.ViewModels;
 
-public enum Section { Search, LiveTv, Movies, Series, Favorites, Settings }
+public enum Section { Search, LiveTv, Movies, Series, Favorites, Settings, ChannelManager }
 
 public partial class MainViewModel : ObservableObject
 {
@@ -78,6 +78,8 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnCurrentSectionChanged(Section oldValue, Section newValue)
     {
+        // Kanavien hallinnan muutokset (piilotus, järjestys, uusi lista) näkyviin Live TV:hen
+        if (CurrentPage is ChannelManagerViewModel { IsDirty: true }) LiveTv?.Reload();
         CurrentPage = newValue == Section.LiveTv ? null : CreatePage(newValue);
         if (LiveTv is null) return;
         if (oldValue == Section.LiveTv && newValue != Section.LiveTv) LiveTv.Suspend();
@@ -101,6 +103,7 @@ public partial class MainViewModel : ObservableObject
             Section.Search => _search ??= new SearchViewModel(s, this),
             Section.Settings => _settingsVm ??= new SettingsViewModel(s, Updates),
             Section.Favorites => new FavoritesViewModel(s, this),
+            Section.ChannelManager => new ChannelManagerViewModel(s, this),
             _ => null,
         };
     }

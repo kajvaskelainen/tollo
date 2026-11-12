@@ -45,7 +45,7 @@ public partial class SearchViewModel : ObservableObject
         {
             await Task.Delay(200, cts.Token); // pieni viive kirjoituksen ajaksi
             try { await Task.WhenAll(_session.EnsureVodAsync(), _session.EnsureSeriesAsync()); } catch { }
-            var live = _session.LiveChannels;
+            var live = _session.VisibleLiveChannels.ToList();
             var vod = _session.Vod;
             var ser = _session.Series;
             // Suodatus taustasäikeessä – listat voivat olla kymmeniä tuhansia

@@ -48,7 +48,7 @@ public partial class LiveTvViewModel : ObservableObject
 
     public void Load()
     {
-        _all = _session.LiveChannels;
+        _all = _session.VisibleLiveChannels.ToList();
         Categories.Clear();
         Categories.Add(new Category { Id = "__history", Name = "Historia", Special = SpecialCategory.History });
         Categories.Add(new Category { Id = "__fav", Name = "Suosikit", Special = SpecialCategory.Favorites });
@@ -57,11 +57,30 @@ public partial class LiveTvViewModel : ObservableObject
         SelectedCategory = Categories[2];
     }
 
+    /// <summary>
+    /// Rakentaa listat uudelleen kanavien hallinnan jälkeen (piilotus, järjestys, uudelleenladattu
+    /// kanavalista). Valittu kategoria säilyy, jos se on yhä näkyvissä.
+    /// </summary>
+    public void Reload()
+    {
+        var selectedId = SelectedCategory?.Id;
+        _all = _session.VisibleLiveChannels.ToList();
+        var specials = Categories.Where(c => c.Special != SpecialCategory.None).ToList();
+        Categories.Clear();
+        foreach (var c in specials) Categories.Add(c);
+        foreach (var c in CategoryOrder.Ordered()) Categories.Add(c);
+        var sel = Categories.FirstOrDefault(c => c.Id == selectedId) ?? Categories.First(c => c.Special == SpecialCategory.All);
+        if (SelectedCategory == sel) ApplyFilter(); else SelectedCategory = sel;
+        UpdateCurrentPrograms();
+        GuideVersion++;
+    }
+
     private CategoryOrderer? _categoryOrder;
-    public CategoryOrderer CategoryOrder => _categoryOrder ??= new(Categories, _session.UserData, "live", () => _session.LiveCategories)
+    public CategoryOrderer CategoryOrder => _categoryOrder ??= new(Categories, _session.UserData, "live", () => _session.VisibleLiveCategories)
     {
         GetSelected = () => SelectedCategory,
         SetSelected = c => SelectedCategory = c,
+        SaveOrder = ids => _session.SaveLiveCategoryOrder(ids),
     };
 
     partial void OnSelectedCategoryChanged(Category? value) => ApplyFilter();
@@ -84,14 +103,12 @@ public partial class LiveTvViewModel : ObservableObject
         IEnumerable<LiveChannel> q;
         var cat = SelectedCategory;
         var ud = _session.UserData;
-        if (cat is null || cat.Special == SpecialCategory.All) q = UserDataStore.ApplyOrder(_all, ud.GetChannelOrder("__all"), c => c.StreamId);
-        else if (cat.Special == SpecialCategory.Favorites) q = UserDataStore.ApplyOrder(_all.Where(c => c.IsFavorite), ud.FavoriteLiveOrder, c => c.StreamId);
-        else if (cat.Special == SpecialCategory.History)
+        if (cat?.Special == SpecialCategory.History)
         {
             var byId = _session.LiveById;
-            q = ud.LiveHistory.Select(id => byId.GetValueOrDefault(id)).OfType<LiveChannel>();
+            q = ud.LiveHistory.Select(id => byId.GetValueOrDefault(id)).OfType<LiveChannel>().Where(_session.IsVisible);
         }
-        else q = UserDataStore.ApplyOrder(_all.Where(c => c.CategoryId == cat.Id), ud.GetChannelOrder(cat.Id), c => c.StreamId);
+        else q = _session.OrderedChannels(OrderKey ?? "__all", includeHidden: false);
 
         var s = SearchText.Trim();
         if (s.Length > 0) q = q.Where(c => c.Name.Contains(s, StringComparison.CurrentCultureIgnoreCase));
@@ -144,13 +161,8 @@ public partial class LiveTvViewModel : ObservableObject
     private void SaveChannelOrder()
     {
         if (OrderKey is not { } key) return;
-        if (key == "__fav")
-        {
-            _session.UserData.SetChannelOrder(key, _channelList.Select(c => c.StreamId));
-            return;
-        }
-        // Tallennetaan koko kategorian järjestys (lista on suodattamaton, kun järjestely on sallittu)
-        _session.UserData.SetChannelOrder(key, _channelList.Select(c => c.StreamId));
+        // Lista sisältää vain näkyvät kanavat; piilotetut pysyvät paikoillaan (eivät putoa suosikeista)
+        _session.SaveChannelOrder(key, _channelList.Select(c => c.StreamId).ToList());
     }
 
     [RelayCommand]
@@ -158,7 +170,7 @@ public partial class LiveTvViewModel : ObservableObject
     {
         if (OrderKey is not { } key) return;
         if (key == "__fav")
-            _session.UserData.SetChannelOrder(key, _all.Where(c => c.IsFavorite).Select(c => c.StreamId));
+            _session.UserData.SetChannelOrder(key, _session.LiveChannels.Where(c => c.IsFavorite).Select(c => c.StreamId));
         else
             _session.UserData.SetChannelOrder(key, null);
         ApplyFilter();

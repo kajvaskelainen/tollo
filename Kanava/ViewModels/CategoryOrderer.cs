@@ -62,5 +62,13 @@ public sealed class CategoryOrderer(ObservableCollection<Category> categories, U
         SetSelected?.Invoke(selected);
     }
 
-    private void Save() => store.SetCategoryOrder(kind, categories.Where(c => c.Special == SpecialCategory.None).Select(c => c.Id));
+    /// <summary>Oma tallennus (esim. Live TV yhdistää piilotetut kategoriat järjestykseen).</summary>
+    public Action<IReadOnlyList<string>>? SaveOrder { get; init; }
+
+    private void Save()
+    {
+        var ids = categories.Where(c => c.Special == SpecialCategory.None).Select(c => c.Id).ToList();
+        if (SaveOrder is not null) SaveOrder(ids);
+        else store.SetCategoryOrder(kind, ids);
+    }
 }

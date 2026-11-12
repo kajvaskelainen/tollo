@@ -37,8 +37,8 @@ public partial class FavoritesViewModel : ObservableObject
 
     public void Refresh()
     {
-        LiveFavorites = _session.LiveChannels.Where(c => c.IsFavorite).ToList();
-        History = _session.UserData.LiveHistory.Select(id => _session.LiveById.GetValueOrDefault(id)).OfType<LiveChannel>().Take(24).ToList();
+        LiveFavorites = _session.VisibleLiveChannels.Where(c => c.IsFavorite).ToList();
+        History = _session.UserData.LiveHistory.Select(id => _session.LiveById.GetValueOrDefault(id)).OfType<LiveChannel>().Where(_session.IsVisible).Take(24).ToList();
         MovieFavorites = _session.Vod.Where(v => v.IsFavorite).ToList();
         SeriesFavorites = _session.Series.Where(s => s.IsFavorite).ToList();
         IsEmpty = LiveFavorites.Count == 0 && MovieFavorites.Count == 0 && SeriesFavorites.Count == 0;

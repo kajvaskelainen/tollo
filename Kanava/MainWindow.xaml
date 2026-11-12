@@ -24,6 +24,9 @@
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ChannelManagerViewModel}">
+            <views:ChannelManagerView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type sys:String}">
             <TextBlock Text="{Binding}" Style="{StaticResource Dim}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="15" />
         </DataTemplate>

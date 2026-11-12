@@ -12,6 +12,10 @@ public sealed class UserData
     public List<string> LiveCategoryOrder { get; set; } = [];
     /// <summary>Kanavien oma järjestys kategorioittain (avain: kategorian id tai "__all").</summary>
     public Dictionary<string, List<int>> LiveChannelOrder { get; set; } = [];
+    /// <summary>Piilotetut live-kanavat (eivät näy Live TV:ssä, oppaassa eivätkä haussa).</summary>
+    public HashSet<int> HiddenLive { get; set; } = [];
+    /// <summary>Piilotetut live-kategoriat (piilottavat myös kaikki kategorian kanavat).</summary>
+    public HashSet<string> HiddenLiveCategories { get; set; } = [];
     /// <summary>Elokuva- ja sarjakategorioiden oma järjestys (avain: "vod" / "series").</summary>
     public Dictionary<string, List<string>> CategoryOrder { get; set; } = [];
     public HashSet<int> FavoriteVod { get; set; } = [];
@@ -99,6 +103,43 @@ public sealed class UserDataStore
             else _data.CategoryOrder[kind] = ids.ToList();
         }
         ScheduleSave();
+    }
+
+    // ---------- Piilotus ----------
+
+    public bool IsLiveHidden(int id) { lock (_lock) return _data.HiddenLive.Contains(id); }
+    public bool IsLiveCategoryHidden(string id) { lock (_lock) return _data.HiddenLiveCategories.Contains(id); }
+    public int HiddenLiveCount { get { lock (_lock) return _data.HiddenLive.Count; } }
+
+    public void SetLiveHidden(IEnumerable<int> ids, bool hidden)
+    {
+        lock (_lock)
+            foreach (var id in ids)
+                if (hidden) _data.HiddenLive.Add(id); else _data.HiddenLive.Remove(id);
+        ScheduleSave();
+    }
+
+    public void SetLiveCategoriesHidden(IEnumerable<string> ids, bool hidden)
+    {
+        lock (_lock)
+            foreach (var id in ids)
+                if (hidden) _data.HiddenLiveCategories.Add(id); else _data.HiddenLiveCategories.Remove(id);
+        ScheduleSave();
+    }
+
+    /// <summary>
+    /// Yhdistää näkyvien kohteiden uuden järjestyksen koko listan järjestykseen niin, että
+    /// piilotetut kohteet pysyvät paikoillaan (näkyvien paikat täytetään uudessa järjestyksessä).
+    /// </summary>
+    public static List<TKey> MergeOrder<TKey>(IReadOnlyList<TKey> full, IReadOnlyList<TKey> visibleNew) where TKey : notnull
+    {
+        var visible = new HashSet<TKey>(visibleNew);
+        var result = new List<TKey>(full.Count);
+        var next = 0;
+        foreach (var k in full)
+            result.Add(visible.Contains(k) && next < visibleNew.Count ? visibleNew[next++] : k);
+        while (next < visibleNew.Count) result.Add(visibleNew[next++]);
+        return result;
     }
 
     /// <summary>Järjestää listan tallennetun id-järjestyksen mukaan; tuntemattomat perään alkuperäisessä järjestyksessä.</summary>
