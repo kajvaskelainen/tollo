@@ -1,0 +1,35 @@
+<UserControl x:Class="Kanava.Views.PlaybackControls"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <!-- DataContext: PlaybackViewModel -->
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <!-- Äänenvoimakkuus -->
+        <Button Style="{StaticResource IconButton}" Foreground="{Binding Foreground, ElementName=Root}"
+                Content="{Binding VolumeGlyph}" Command="{Binding ToggleMuteCommand}"
+                ToolTip="Mykistä (M) · rulla säätää" AutomationProperties.Name="Mykistä" MouseWheel="OnVolumeWheel" />
+        <Slider x:Name="VolumeSlider" Width="{Binding SliderWidth, ElementName=Root}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="4,0,6,0"
+                Value="{Binding Volume, Mode=TwoWay}" MouseWheel="OnVolumeWheel" AutomationProperties.Name="Äänenvoimakkuus"
+                ToolTip="{Binding Volume}" IsMoveToPointEnabled="True" />
+        <TextBlock Text="{Binding Volume}" Width="24" FontSize="11" Opacity="0.7" VerticalAlignment="Center"
+                   Foreground="{Binding Foreground, ElementName=Root}" />
+
+        <!-- Ääniraita -->
+        <Button x:Name="AudioButton" Style="{StaticResource IconButton}" Foreground="{Binding Foreground, ElementName=Root}" Width="Auto" Padding="0"
+                Margin="8,0,0,0" Click="OnAudioMenu" ToolTip="Ääniraita / kieli" AutomationProperties.Name="Ääniraita">
+            <StackPanel Orientation="Horizontal" Margin="8,0">
+                <TextBlock Text="&#xE8D6;" FontFamily="{StaticResource IconFont}" FontSize="15" VerticalAlignment="Center" />
+                <TextBlock x:Name="AudioLabel" Text="Ääni" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+        </Button>
+
+        <!-- Tekstitys -->
+        <Button x:Name="SubButton" Style="{StaticResource IconButton}" Foreground="{Binding Foreground, ElementName=Root}" Width="Auto" Padding="0"
+                Margin="4,0,0,0" Click="OnSubtitleMenu" ToolTip="Tekstitys" AutomationProperties.Name="Tekstitys">
+            <StackPanel Orientation="Horizontal" Margin="8,0">
+                <TextBlock Text="&#xE7F0;" FontFamily="{StaticResource IconFont}" FontSize="15" VerticalAlignment="Center" />
+                <TextBlock x:Name="SubLabel" Text="Tekstitys" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+        </Button>
+    </StackPanel>
+</UserControl>

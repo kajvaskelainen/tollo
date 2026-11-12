@@ -1,0 +1,19 @@
+﻿<Application x:Class="Kanava.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Kanava"
+             ShutdownMode="OnMainWindowClose">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <local:BoolToVisibilityConverter x:Key="BoolToVis" />
+            <local:NullToVisibilityConverter x:Key="NullToVis" />
+            <local:EqualsConverter x:Key="Equals" />
+            <local:ProgressWidthConverter x:Key="ProgressWidth" />
+            <local:AspectWidthConverter x:Key="AspectWidth" />
+            <local:HeartGlyphConverter x:Key="HeartGlyph" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

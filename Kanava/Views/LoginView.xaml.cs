@@ -1,0 +1,15 @@
+using System.Windows;
+using System.Windows.Controls;
+using Kanava.ViewModels;
+
+namespace Kanava.Views;
+
+public partial class LoginView : UserControl
+{
+    public LoginView() => InitializeComponent();
+
+    private void OnPasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is LoginViewModel vm) vm.Password = PasswordBox.Password;
+    }
+}

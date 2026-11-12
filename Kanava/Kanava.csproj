@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Ohjelman nimi on Töllö; exe ASCII-nimellä (Tollo.exe), koodin nimiavaruus pysyy Kanava -->
+    <AssemblyName>Tollo</AssemblyName>
+    <RootNamespace>Kanava</RootNamespace>
+    <Product>Töllö</Product>
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- Vain 64-bittinen libvlc mukaan -->
+    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+    <ApplicationIcon>Assets\Tollo.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Company>Töllö</Company>
+    <AssemblyTitle>Töllö</AssemblyTitle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Tollo.png" />
+    <!-- Lisenssitiedot jaettavan version mukaan (LGPL edellyttää) -->
+    <None Include="..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Julkaisu: dotnet publish -c Release (ks. README) – ei vaadi .NET:n asennusta -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>fi;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="LibVLCSharp.WPF" Version="3.10.2" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
+    <PackageReference Include="VirtualizingWrapPanel" Version="2.5.4" />
+  </ItemGroup>
+
+</Project>

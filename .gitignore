@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+# Julkaistu ohjelma – jaetaan GitHubin Releases-osion zip-tiedostona, ei repossa
+Ohjelma/
+dist/
+*.zip
