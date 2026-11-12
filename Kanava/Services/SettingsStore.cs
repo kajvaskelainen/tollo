@@ -12,14 +12,23 @@ public static class AppPaths
     /// <summary>Ohjelman aiempi nimi; sen kansiot siirretään uuteen nimeen ensimmäisellä käynnistyksellä.</summary>
     private const string OldName = "Kanava";
 
-    public static string Root { get; } = Path.Combine(
+    public static string Root { get; } = DevDataDir ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Name);
 
-    public static string Cache { get; } = Path.Combine(
+    public static string Cache { get; } = DevDataDir is { } d ? Path.Combine(d, "cache") : Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name, "cache");
+
+    /// <summary>Vain Debug: TOLLO_DATA_DIR ohjaa tiedot erilliseen kansioon testausta varten.</summary>
+    private static string? DevDataDir =>
+#if DEBUG
+        Environment.GetEnvironmentVariable("TOLLO_DATA_DIR") is { Length: > 0 } dir ? dir : null;
+#else
+        null;
+#endif
 
     static AppPaths()
     {
+        if (DevDataDir is not null) { Directory.CreateDirectory(Cache); return; }
         Migrate(Environment.SpecialFolder.ApplicationData);
         Migrate(Environment.SpecialFolder.LocalApplicationData);
         Directory.CreateDirectory(Root);

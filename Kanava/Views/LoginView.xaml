@@ -25,7 +25,12 @@
                 <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16" />
 
                 <TextBlock Text="Salasana" Style="{StaticResource Dim}" Margin="0,0,0,6" />
-                <PasswordBox x:Name="PasswordBox" Margin="0,0,0,18" PasswordChanged="OnPasswordChanged" />
+                <Grid Margin="0,0,0,18">
+                    <PasswordBox x:Name="PasswordBox" PasswordChanged="OnPasswordChanged" />
+                    <TextBlock Text="••••••••  (tallennettu salasana)" Foreground="{StaticResource TextFaintBrush}" IsHitTestVisible="False"
+                               VerticalAlignment="Center" Margin="12,0,0,0"
+                               Visibility="{Binding ShowSavedPasswordHint, Converter={StaticResource BoolToVis}}" />
+                </Grid>
 
                 <CheckBox Content="Muista kirjautuminen" IsChecked="{Binding RememberMe}" Margin="0,0,0,22" />
 

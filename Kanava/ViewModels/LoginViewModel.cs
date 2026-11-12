@@ -18,7 +18,27 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty] private string _busyText = "Kirjaudutaan…";
 
     /// <summary>Salasana asetetaan PasswordBoxista (ei sidota, jotta se ei jää näkyviin).</summary>
-    public string Password { get; set; } = "";
+    public string Password
+    {
+        get => _password;
+        set { _password = value; OnPropertyChanged(nameof(ShowSavedPasswordHint)); }
+    }
+    private string _password = "";
+
+    /// <summary>Tallennettu salasana kelpaa, jos palvelin ja tunnus ovat samat kuin tallennetut.</summary>
+    private Credentials? SavedCredentials()
+    {
+        var saved = _settings.GetSavedCredentials();
+        return saved is not null && saved.Username == Username.Trim() &&
+               string.Equals(saved.ServerUrl.TrimEnd('/'), ServerUrl.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+            ? saved : null;
+    }
+
+    /// <summary>Salasanakenttä on tyhjä, mutta tallennettu salasana on käytettävissä.</summary>
+    public bool ShowSavedPasswordHint => Password.Length == 0 && SavedCredentials() is not null;
+
+    partial void OnServerUrlChanged(string value) => OnPropertyChanged(nameof(ShowSavedPasswordHint));
+    partial void OnUsernameChanged(string value) => OnPropertyChanged(nameof(ShowSavedPasswordHint));
 
     public LoginViewModel(SettingsStore settings, Func<Credentials, AccountInfo, Task> onSuccess)
     {
@@ -34,6 +54,10 @@ public partial class LoginViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanLogin))]
     private Task LoginAsync()
     {
+        // Tyhjä salasanakenttä + tallennettu salasana samalle tilille → käytetään tallennettua
+        if (Password.Length == 0 && SavedCredentials() is { } saved)
+            return TryLoginAsync(saved, save: true);
+
         var url = ServerUrl.Trim();
         if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
             !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
@@ -48,21 +72,46 @@ public partial class LoginViewModel : ObservableObject
         return TryLoginAsync(new Credentials { ServerUrl = clean, Username = Username.Trim(), Password = Password }, save: true);
     }
 
-    public async Task TryLoginAsync(Credentials creds, bool save)
+    /// <summary>
+    /// Kirjautuminen. Automaattisessa kirjautumisessa (<paramref name="automatic"/>) verkkovirheitä
+    /// yritetään uudelleen, koska koneen käynnistyttyä yhteys ei välttämättä ole vielä valmis.
+    /// </summary>
+    public async Task TryLoginAsync(Credentials creds, bool save, bool automatic = false)
     {
         Error = null;
         IsBusy = true;
         BusyText = "Kirjaudutaan…";
+        int[] waits = automatic ? [2, 3, 5, 10, 15] : [];
         try
         {
-            var client = new XtreamClient(creds);
-            var account = await client.LoginAsync();
+            AccountInfo account;
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    account = await new XtreamClient(creds).LoginAsync();
+                    break;
+                }
+                catch (XtreamException ex) when (ex.IsTransient && attempt < waits.Length)
+                {
+                    BusyText = $"Odotetaan verkkoyhteyttä… (yritys {attempt + 2}/{waits.Length + 1})";
+                    await Task.Delay(TimeSpan.FromSeconds(waits[attempt]));
+                }
+            }
             if (save) _settings.SaveCredentials(creds, RememberMe);
             BusyText = "Ladataan kanavia…";
             await _onSuccess(creds, account);
         }
-        catch (XtreamException ex) { Error = ex.Message; }
-        catch (Exception ex) { Error = "Odottamaton virhe: " + ex.Message; }
-        finally { IsBusy = false; }
+        catch (XtreamException ex) { Error = AutoPrefix(automatic) + ex.Message + AutoSuffix(automatic); }
+        catch (Exception ex) { Error = AutoPrefix(automatic) + "Odottamaton virhe: " + ex.Message + AutoSuffix(automatic); }
+        finally
+        {
+            IsBusy = false;
+            OnPropertyChanged(nameof(ShowSavedPasswordHint));
+        }
     }
+
+    private static string AutoPrefix(bool automatic) => automatic ? "Automaattinen kirjautuminen epäonnistui: " : "";
+    private static string AutoSuffix(bool automatic) =>
+        automatic ? "\nTunnuksesi ovat tallessa – yritä uudelleen painamalla Kirjaudu sisään." : "";
 }

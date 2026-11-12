@@ -6,7 +6,11 @@ using Kanava.Models;
 
 namespace Kanava.Services;
 
-public sealed class XtreamException(string message, Exception? inner = null) : Exception(message, inner);
+public sealed class XtreamException(string message, Exception? inner = null) : Exception(message, inner)
+{
+    /// <summary>Verkko- tai aikakatkaisuvirhe, jonka uudelleenyritys voi korjata (ei esim. väärä salasana).</summary>
+    public bool IsTransient => InnerException is HttpRequestException or TaskCanceledException;
+}
 
 /// <summary>Xtream Codes -rajapinnan asiakas (player_api.php).</summary>
 public sealed class XtreamClient

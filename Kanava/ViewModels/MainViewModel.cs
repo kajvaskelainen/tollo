@@ -37,7 +37,7 @@ public partial class MainViewModel : ObservableObject
     {
         _ = Updates.StartupCheckAsync();
         var creds = commandLine ?? _settings.GetSavedCredentials();
-        if (creds is not null) await Login.TryLoginAsync(creds, save: commandLine is not null);
+        if (creds is not null) await Login.TryLoginAsync(creds, save: commandLine is not null, automatic: commandLine is null);
     }
 
     private async Task OnLoggedInAsync(Credentials creds, AccountInfo account)
