@@ -77,6 +77,19 @@ public sealed class AppSettings
     /// <summary>"s", "m" tai "l".</summary>
     public string PipSize { get; set; } = "m";
     public bool PipTopmost { get; set; } = true;
+
+    /// <summary>Ulkoiset XMLTV-oppaat (täydentävät palveluntarjoajan opasta).</summary>
+    public List<EpgSource> EpgSources { get; set; } = [];
+}
+
+public sealed class EpgSource
+{
+    public string Url { get; set; } = "";
+    public string Name { get; set; } = "";
+    public bool Enabled { get; set; } = true;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string DisplayName => Name.Length > 0 ? Name : Url;
 }
 
 /// <summary>Asetusten ja kirjautumistietojen tallennus %AppData%\Tollo -kansioon.</summary>

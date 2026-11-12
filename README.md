@@ -70,6 +70,7 @@ dotnet run --project MockXtream -- 8085
 | `Models/` | Xtream-tietomallit (kanava, VOD, sarja, EPG-ohjelma) |
 | `Services/XtreamClient.cs` | `player_api.php`-kutsut, URL:t (`/live`, `/movie`, `/series`, `xmltv.php`) |
 | `Services/EpgService.cs` | XMLTV: lataus taustalla, levyvälimuisti, päivitys kerran vuorokaudessa, suoratoistojäsennys |
+| `Services/EpgMatcher.cs` | Ulkoisten XMLTV-oppaiden kanavien yhdistäminen nimen perusteella (FI:, HD, .fi yms. ohitetaan) |
 | `Services/SettingsStore.cs` | Asetukset `%AppData%\Tollo`, salasana DPAPI:lla (CurrentUser) |
 | `Services/UserDataStore.cs` | Suosikit ja historia profiilikohtaisesti |
 | `Services/PlayerService.cs` | Yhteinen LibVLC, VLC-kutsut järjestyksessä taustasäikeessä |

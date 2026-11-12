@@ -13,7 +13,7 @@ public sealed class AppSession
         Player = player;
         Client = new XtreamClient(credentials);
         UserData = new UserDataStore(credentials.ProfileKey);
-        Epg = new EpgService(Client, credentials.ProfileKey);
+        Epg = new EpgService(Client, settings, credentials.ProfileKey);
     }
 
     public Credentials Credentials { get; }

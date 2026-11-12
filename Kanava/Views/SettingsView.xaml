@@ -100,6 +100,85 @@
                 </StackPanel>
             </Border>
 
+            <Border Style="{StaticResource Card}" DataContext="{Binding EpgSources}">
+                <StackPanel>
+                    <TextBlock Text="Ulkoiset ohjelmaoppaat" Style="{StaticResource CardTitle}" />
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,0,0,12"
+                               Text="Jos palveluntarjoajasi opas puuttuu tai on vajaa, lisää ilmainen XMLTV-opas. Kanavat yhdistetään nimen perusteella, ja ulkoista opasta käytetään kanaville, joille palveluntarjoajalla ei ole ohjelmatietoja. Testaa ensin, kuinka moneen kanavaasi lähde osuu." />
+
+                    <TextBlock Text="Valmiit lähteet" Style="{StaticResource Dim}" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding Presets}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Content="Lisää" Margin="6,0,0,0" Padding="12,5"
+                                            Command="{Binding DataContext.AddPresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding Name, StringFormat=Lisää {0}}" />
+                                    <Button DockPanel.Dock="Right" Content="Testaa" Padding="12,5"
+                                            Command="{Binding DataContext.TestPresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding Name, StringFormat=Testaa {0}}" />
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" />
+                                        <TextBlock Text="{Binding Note}" Foreground="{StaticResource TextFaintBrush}" FontSize="11.5"
+                                                   Visibility="{Binding Note, Converter={StaticResource NullToVis}}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="Oma osoite tai tiedosto (.xml tai .xml.gz)" Style="{StaticResource Dim}" Margin="0,10,0,6" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Lisää" Margin="6,0,0,0" Padding="12,5" VerticalAlignment="Center" Command="{Binding AddNewCommand}" AutomationProperties.Name="Lisää oma lähde" />
+                        <Button DockPanel.Dock="Right" Content="Testaa" Margin="6,0,0,0" Padding="12,5" VerticalAlignment="Center" Command="{Binding TestNewCommand}" AutomationProperties.Name="Testaa oma lähde" />
+                        <TextBox Text="{Binding NewUrl, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" AutomationProperties.Name="Oppaan osoite" />
+                    </DockPanel>
+
+                    <!-- Testiraportti -->
+                    <Border Background="{StaticResource BgBrush}" CornerRadius="8" Padding="14,10" Margin="0,12,0,0"
+                            Visibility="{Binding HasReport, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE8BB;" FontSize="11"
+                                        Command="{Binding CloseReportCommand}" AutomationProperties.Name="Sulje testin tulos" />
+                                <Button DockPanel.Dock="Right" Content="Ota käyttöön" Padding="12,4" Margin="0,0,8,0" Command="{Binding AddReportedCommand}"
+                                        Visibility="{Binding CanAddReported, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Ota testattu lähde käyttöön" />
+                                <TextBlock Text="{Binding ReportTitle}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </DockPanel>
+                            <TextBlock Text="{Binding ReportSummary}" TextWrapping="Wrap" Margin="0,6,0,0" LineHeight="20"
+                                       Visibility="{Binding ReportSummary, Converter={StaticResource NullToVis}}" />
+                            <TextBlock Text="{Binding ReportMatched}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextDimBrush}" Margin="0,8,0,0"
+                                       Visibility="{Binding ReportMatched, Converter={StaticResource NullToVis}}" />
+                            <TextBlock Text="{Binding ReportUnmatched}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextFaintBrush}" Margin="0,8,0,0"
+                                       Visibility="{Binding ReportUnmatched, Converter={StaticResource NullToVis}}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Käytössä olevat -->
+                    <TextBlock Text="Käytössä olevat lähteet" Style="{StaticResource Dim}" Margin="0,14,0,6"
+                               Visibility="{Binding HasRows, Converter={StaticResource BoolToVis}}" />
+                    <ItemsControl ItemsSource="{Binding Rows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Content="Poista" Margin="6,0,0,0" Padding="12,5" Command="{Binding RemoveCommand}"
+                                            AutomationProperties.Name="{Binding Name, StringFormat=Poista {0}}" />
+                                    <Button DockPanel.Dock="Right" Content="Testaa" Padding="12,5" Command="{Binding TestCommand}"
+                                            AutomationProperties.Name="{Binding Name, StringFormat=Testaa käytössä {0}}" />
+                                    <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Käytössä"
+                                              AutomationProperties.Name="{Binding Name, StringFormat=Käytä {0}}" />
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding LastResult}" Foreground="{StaticResource TextFaintBrush}" FontSize="11.5"
+                                                   Visibility="{Binding LastResult, Converter={StaticResource NullToVis}}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="Tiedot" Style="{StaticResource CardTitle}" />

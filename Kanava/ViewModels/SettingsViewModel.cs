@@ -15,11 +15,13 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _message = "";
 
     public UpdateViewModel Updates { get; }
+    public EpgSourcesViewModel EpgSources { get; }
 
     public SettingsViewModel(AppSession session, UpdateViewModel updates)
     {
         _session = session;
         Updates = updates;
+        EpgSources = new EpgSourcesViewModel(session);
         _liveFormat = session.Settings.Settings.LiveFormat;
         EpgStatus = session.Epg.Status;
         session.Epg.Updated += OnEpgUpdated;
