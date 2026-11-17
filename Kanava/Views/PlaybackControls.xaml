@@ -31,5 +31,9 @@
                 <TextBlock x:Name="SubLabel" Text="Tekstitys" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center" />
             </StackPanel>
         </Button>
+
+        <!-- Lisää: äänen synkronointi, kuvasuhde, tasoitus, uniajastin -->
+        <Button x:Name="MoreButton" Style="{StaticResource IconButton}" Foreground="{Binding Foreground, ElementName=Root}" Margin="4,0,0,0"
+                Content="&#xE712;" Click="OnMoreMenu" ToolTip="Äänen synkronointi, kuvasuhde, tasoitus, uniajastin" AutomationProperties.Name="Lisää toistoasetuksia" />
     </StackPanel>
 </UserControl>

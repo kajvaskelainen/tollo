@@ -63,10 +63,123 @@ public partial class PlaybackViewModel : ObservableObject, IDisposable
 
     private void OnPlaying(object? sender, EventArgs e) => Ui(() =>
     {
-        // VLC voi palauttaa äänenvoimakkuuden uuden median alkaessa
+        // VLC voi palauttaa äänenvoimakkuuden, viiveen ja kuvasuhteen uuden median alkaessa
         ApplyVolume();
+        ApplyAudioDelay();
+        ApplyAspect();
         _tracksDirty = true;
     });
+
+    // ---------- Äänen synkronointi ----------
+
+    /// <summary>Äänen viive (ms). Positiivinen = ääni myöhemmin (kun ääni on kuvaa edellä).</summary>
+    [ObservableProperty] private int _audioDelayMs;
+    private string? _syncKey;
+
+    /// <summary>Asetetaan, kun toistettava kanava/elokuva vaihtuu: ladataan sille tallennettu viive.</summary>
+    public void SetSyncKey(string? key)
+    {
+        _syncKey = key;
+        var v = key is not null && _settings.Settings.AudioDelays.TryGetValue(key, out var d) ? d : 0;
+        if (v != AudioDelayMs) AudioDelayMs = v; else ApplyAudioDelay();
+    }
+
+    public void ShiftAudio(int ms)
+    {
+        AudioDelayMs = Math.Clamp(AudioDelayMs + ms, -10000, 10000);
+        ShowOsd("Äänen viive " + DelayText(AudioDelayMs) + (AudioDelayMs == 0 ? "" : AudioDelayMs > 0 ? " (ääni myöhemmin)" : " (ääni aiemmin)"));
+    }
+
+    [RelayCommand] private void AudioLater() => ShiftAudio(100);
+    [RelayCommand] private void AudioEarlier() => ShiftAudio(-100);
+    [RelayCommand] private void ResetAudioDelay() { AudioDelayMs = 0; ShowOsd("Äänen viive nollattu"); }
+
+    partial void OnAudioDelayMsChanged(int value)
+    {
+        ApplyAudioDelay();
+        if (_syncKey is null) return;
+        if (value == 0) _settings.Settings.AudioDelays.Remove(_syncKey);
+        else _settings.Settings.AudioDelays[_syncKey] = value;
+        SaveSettings();
+    }
+
+    private void ApplyAudioDelay()
+    {
+        var us = AudioDelayMs * 1000L;
+        Task.Run(() => { try { _player.SetAudioDelay(us); } catch { } });
+    }
+
+    public static string DelayText(int ms) => ms == 0 ? "0,0 s" : (ms > 0 ? "+" : "−") + (Math.Abs(ms) / 1000.0).ToString("0.0", CultureInfo.GetCultureInfo("fi-FI")) + " s";
+
+    // ---------- Kuvasuhde ----------
+
+    /// <summary>"" = automaattinen, muuten esim. "16:9". Crop = rajaus (zoom) samaan muotoon.</summary>
+    [ObservableProperty] private string _aspect = "";
+    [ObservableProperty] private string _crop = "";
+
+    partial void OnAspectChanged(string value) => ApplyAspect();
+    partial void OnCropChanged(string value) => ApplyAspect();
+
+    private void ApplyAspect()
+    {
+        var a = Aspect.Length > 0 ? Aspect : null;
+        var c = Crop.Length > 0 ? Crop : null;
+        Task.Run(() => { try { _player.AspectRatio = a; _player.CropGeometry = c; } catch { } });
+    }
+
+    public void SetAspect(string aspect, string crop)
+    {
+        Aspect = aspect;
+        Crop = crop;
+        ShowOsd(crop.Length > 0 ? $"Zoom: rajaus {crop}" : aspect.Length > 0 ? $"Kuvasuhde {aspect}" : "Kuvasuhde automaattinen");
+    }
+
+    // ---------- Äänen tasoitus ----------
+
+    /// <summary>Owner käynnistää lähetyksen uudelleen, kun tasoitus vaihdetaan (vaatii median uudelleenavauksen).</summary>
+    public Action? RestartRequested { get; set; }
+
+    public bool NormalizeAudio => _settings.Settings.NormalizeAudio;
+
+    public void ToggleNormalize()
+    {
+        var on = !_settings.Settings.NormalizeAudio;
+        _settings.Settings.NormalizeAudio = on;
+        PlayerService.NormalizeAudio = on;
+        SaveSettings();
+        OnPropertyChanged(nameof(NormalizeAudio));
+        ShowOsd(on ? "Äänen tasoitus päällä" : "Äänen tasoitus pois");
+        RestartRequested?.Invoke();
+    }
+
+    // ---------- Suoratoisto (Chromecast) ----------
+
+    /// <summary>Laitteen nimi, johon suoratoistetaan (null = tällä koneella).</summary>
+    [ObservableProperty] private string? _castTarget;
+
+    public LibVLC LibVLC => _libvlc;
+
+    public void CastTo(RendererItem? item)
+    {
+        CastTarget = item?.Name;
+        try { _player.SetRenderer(item); } catch { }
+        ShowOsd(item is null ? "Suoratoisto lopetettu – toisto tällä koneella" : $"Suoratoistetaan: {item.Name}");
+        // Renderöijä otetaan käyttöön median uudelleenavauksessa
+        RestartRequested?.Invoke();
+    }
+
+    // ---------- Ilmoitus kuvan päällä (OSD) ----------
+
+    [ObservableProperty] private string _osd = "";
+    private DispatcherTimer? _osdTimer;
+
+    public void ShowOsd(string text)
+    {
+        Osd = text;
+        _osdTimer ??= new DispatcherTimer(TimeSpan.FromSeconds(2.5), DispatcherPriority.Normal, (_, _) => { Osd = ""; _osdTimer!.Stop(); }, Dispatcher.CurrentDispatcher);
+        _osdTimer.Stop();
+        _osdTimer.Start();
+    }
 
     private void OnTracksChanged(object? sender, MediaPlayerESAddedEventArgs e) => _tracksDirty = true;
     private void OnTracksChanged(object? sender, MediaPlayerESDeletedEventArgs e) => _tracksDirty = true;

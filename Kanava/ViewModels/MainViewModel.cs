@@ -51,6 +51,11 @@ public partial class MainViewModel : ObservableObject
 
         Session = session;
         LiveTv = live;
+        StartReminders(session);
+        Recordings?.Dispose();
+        var recs = Recordings = new RecordingService(session);
+        live.IsRecording = id => recs.ActiveFor(id) is not null;
+        recs.Changed += live.RefreshRecording;
         CurrentSection = Section.LiveTv;
         IsLoggedIn = true;
 
@@ -60,6 +65,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void Logout()
     {
+        Recordings?.Dispose();
+        Recordings = null;
+        _reminderTimer?.Stop();
         _player.Stop(_player.Preview);
         Session?.UserData.SaveNow();
         _settings.ClearPassword();
@@ -106,7 +114,7 @@ public partial class MainViewModel : ObservableObject
             Section.Movies => _movies ??= new MoviesViewModel(s, this),
             Section.Series => _series ??= new SeriesViewModel(s, this),
             Section.Search => _search ??= new SearchViewModel(s, this),
-            Section.Settings => _settingsVm ??= new SettingsViewModel(s, Updates),
+            Section.Settings => _settingsVm ??= new SettingsViewModel(s, Updates, this),
             Section.Favorites => new FavoritesViewModel(s, this),
             Section.ChannelManager => new ChannelManagerViewModel(s, this),
             _ => null,
@@ -129,13 +137,40 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>Pyyntö avata VOD-soitin (MainWindow avaa ikkunan).</summary>
-    public event Action<string, string>? PlayVodRequested;
+    public event Action<PlaybackRequest>? PlayVodRequested;
 
-    public void PlayVod(string url, string title)
+    /// <summary>Tallennukset (kirjautumisen ajan).</summary>
+    [ObservableProperty] private RecordingService? _recordings;
+
+    /// <summary>TV-oppaan muistutus erääntyi (MainWindow näyttää ilmoituksen).</summary>
+    public event Action<Reminder>? ReminderDue;
+    private System.Windows.Threading.DispatcherTimer? _reminderTimer;
+
+    private void StartReminders(AppSession session)
+    {
+        _reminderTimer?.Stop();
+        _reminderTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        _reminderTimer.Tick += (_, _) =>
+        {
+            if (Session != session) { _reminderTimer?.Stop(); return; }
+            foreach (var r in session.UserData.TakeDueReminders(DateTime.Now, TimeSpan.FromMinutes(5))) ReminderDue?.Invoke(r);
+        };
+        _reminderTimer.Start();
+    }
+
+    /// <summary>Muistutuksen "Katso"-nappi: Live TV:hen ja kanavalle.</summary>
+    public void WatchReminder(Reminder r)
+    {
+        if (Session?.LiveById.TryGetValue(r.StreamId, out var ch) != true || LiveTv is null) return;
+        if (CurrentSection != Section.LiveTv) Navigate(Section.LiveTv);
+        LiveTv.SelectAndPlay(ch!);
+    }
+
+    public void PlayVod(PlaybackRequest request)
     {
         // Vain yksi striimi kerrallaan (monet palvelut rajoittavat yhteyksiä)
         _player.Stop(_player.Preview);
-        PlayVodRequested?.Invoke(url, title);
+        PlayVodRequested?.Invoke(request);
     }
 
     /// <summary>Kutsutaan, kun VOD-soitin suljetaan.</summary>
@@ -146,6 +181,7 @@ public partial class MainViewModel : ObservableObject
 
     public void Shutdown()
     {
+        Recordings?.Dispose();
         Session?.UserData.SaveNow();
     }
 }

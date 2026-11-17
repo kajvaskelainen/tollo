@@ -10,6 +10,24 @@
         <Grid x:Name="Overlay" Background="#01000000" MouseMove="OnMouseMove" MouseLeftButtonDown="OnOverlayDown">
             <!-- Lataus / virhe -->
             <TextBlock x:Name="StatusText" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="#CCC" Text="Ladataan…" />
+            <!-- OSD: äänen viive, kuvasuhde… -->
+            <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,70,0,0" Background="#CC000000" CornerRadius="8" Padding="14,7"
+                    IsHitTestVisible="False" Visibility="{Binding Osd, Converter={StaticResource NullToVis}}">
+                <TextBlock Text="{Binding Osd}" Foreground="White" FontSize="14" />
+            </Border>
+
+            <!-- Seuraava jakso -->
+            <Border x:Name="NextCard" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,32,150"
+                    Background="#E6141414" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="10" Padding="18,14" MaxWidth="420">
+                <StackPanel>
+                    <TextBlock x:Name="NextTitle" Foreground="White" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock x:Name="NextCountdown" Foreground="#BBB" FontSize="12.5" Margin="0,4,0,12" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Toista nyt" Click="OnPlayNext" Padding="14,6" Margin="0,0,8,0" AutomationProperties.Name="Toista seuraava jakso" />
+                        <Button Content="Peruuta" Click="OnCancelNext" Padding="14,6" AutomationProperties.Name="Peruuta seuraava jakso" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
 
             <!-- Yläpalkki -->
             <Border x:Name="TopBar" VerticalAlignment="Top" Padding="24,18,24,40">
@@ -52,6 +70,8 @@
                             <Button x:Name="PlayPause" Style="{StaticResource IconButton}" Content="&#xE769;" Foreground="White" Width="48" Height="48" FontSize="22"
                                     Click="OnPlayPause" ToolTip="Toista / tauko (välilyönti)" Margin="6,0" />
                             <Button Style="{StaticResource IconButton}" Content="&#xED3D;" Foreground="White" Width="40" Height="40" FontSize="18" Click="OnFwd30" ToolTip="+30 s (→)" />
+                            <Button x:Name="NextButton" Style="{StaticResource IconButton}" Content="&#xE893;" Foreground="White" Width="40" Height="40" FontSize="18"
+                                    Click="OnNextClick" Margin="6,0,0,0" Visibility="Collapsed" AutomationProperties.Name="Seuraava jakso" />
                         </StackPanel>
                         <!-- Lähetyksen tiedot keskellä -->
                         <StackPanel x:Name="StatsPanel" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"

@@ -73,3 +73,11 @@ public sealed class ProgressWidthConverter : IMultiValueConverter
     }
     public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }
+
+/// <summary>Luku &gt; 0 → Visible (esim. katselukohdan palkki).</summary>
+public sealed class PositiveToVisibilityConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+        value is double d && d > 0.001 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new NotSupportedException();
+}

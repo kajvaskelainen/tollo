@@ -16,15 +16,63 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContextChanged += (_, e) =>
         {
-            if (_vm is not null) { _vm.PropertyChanged -= OnMainChanged; _vm.PlayVodRequested -= OnPlayVod; }
+            if (_vm is not null) { _vm.PropertyChanged -= OnMainChanged; _vm.PlayVodRequested -= OnPlayVod; _vm.ReminderDue -= OnReminderDue; }
             _vm = e.NewValue as MainViewModel;
-            if (_vm is not null) { _vm.PropertyChanged += OnMainChanged; _vm.PlayVodRequested += OnPlayVod; }
+            if (_vm is not null) { _vm.PropertyChanged += OnMainChanged; _vm.PlayVodRequested += OnPlayVod; _vm.ReminderDue += OnReminderDue; }
         };
         // Näppäimet kaikista sovelluksen ikkunoista (myös VideoView:n overlay-ikkunasta)
         EventManager.RegisterClassHandler(typeof(Window), Keyboard.PreviewKeyDownEvent, new KeyEventHandler(OnAnyKeyDown));
         StateChanged += OnWindowStateChanged;
         Closing += OnWindowClosing;
         Closed += (_, _) => ClosePip(resume: false);
+        Services.SleepTimer.Expired += OnSleepTimerExpired;
+    }
+
+    private void OnReminderDue(Services.Reminder r)
+    {
+        var toast = new Views.ReminderToast(r);
+        toast.WatchRequested += () =>
+        {
+            // Pienoissoittimessa vaihdetaan kanava siellä, muuten tuodaan Töllö esiin
+            if (_pip is null)
+            {
+                if (!IsVisible) { Show(); SetOverlaysVisible(true); }
+                if (WindowState == WindowState.Minimized) WindowState = _stateBeforeMinimize;
+                Activate();
+            }
+            _vm?.WatchReminder(r);
+        };
+        toast.Show();
+    }
+
+    /// <summary>Uniajastin päättyi: pysäytetään kaikki toisto (live, pienoissoitin, elokuvat).</summary>
+    private void OnSleepTimerExpired()
+    {
+        foreach (var w in OwnedWindows.OfType<Views.VodPlayerWindow>().ToList()) w.Close();
+        var hidden = !IsVisible && _pip is not null; // suljettu pienoissoittimeen → ohjelma sulkeutuu
+        ClosePip(resume: false);
+        _live?.StopPlayback();
+        if (hidden) { _exiting = true; Close(); }
+    }
+
+    // ---------- Monikatselu ----------
+
+    private Views.MultiviewWindow? _multiview;
+
+    /// <summary>Avaa monikatselun; esikatselu pysäytetään (yhteyksien säästämiseksi) ja jatkuu suljettaessa.</summary>
+    public void OpenMultiview()
+    {
+        if (_multiview is not null) { _multiview.Activate(); return; }
+        if (_vm?.Session is not { } session || _live is null) return;
+        var first = _live.PlayingChannel;
+        _live.Suspend();
+        _multiview = new Views.MultiviewWindow(session, first);
+        _multiview.Closed += (_, _) =>
+        {
+            _multiview = null;
+            if (_vm?.CurrentSection == Section.LiveTv && WindowState != WindowState.Minimized && _pip is null) _live?.Resume();
+        };
+        _multiview.Show();
     }
 
     // ---------- Pienoissoitin (PiP) ----------
@@ -39,7 +87,7 @@ public partial class MainWindow : Window
 
     private bool CanPip =>
         _pip is null && _vm is { IsLoggedIn: true, CurrentSection: Section.LiveTv } && _live?.PlayingChannel is not null
-        && !OwnedWindows.OfType<Views.VodPlayerWindow>().Any();
+        && !OwnedWindows.OfType<Views.VodPlayerWindow>().Any() && _multiview is null;
 
     /// <summary>Live TV:n "Pienoissoitin"-nappi: pienentää ikkunan ja avaa PiP:n asetuksista riippumatta.</summary>
     public void OpenPipManually()
@@ -147,15 +195,16 @@ public partial class MainWindow : Window
         }
         else if (e.PropertyName == nameof(MainViewModel.Session))
         {
+            if (_vm!.Session is null) _multiview?.Close();
             var name = _vm!.Session?.Account.Username ?? "";
             AvatarText.Text = name.Length > 0 ? name[..1].ToUpperInvariant() : "?";
         }
     }
 
-    private void OnPlayVod(string url, string title)
+    private void OnPlayVod(Models.PlaybackRequest request)
     {
         var vm = _vm!;
-        var win = new Views.VodPlayerWindow(vm.Player, vm.Settings, url, title) { Owner = this };
+        var win = new Views.VodPlayerWindow(vm.Player, vm.Settings, vm.Session?.UserData, request) { Owner = this };
         win.Closed += (_, _) => { vm.OnVodClosed(); Activate(); };
         win.Show();
     }
@@ -188,6 +237,9 @@ public partial class MainWindow : Window
         }
     }
 
+    private static int? DigitOf(Key k) =>
+        k is >= Key.D0 and <= Key.D9 ? k - Key.D0 : k is >= Key.NumPad0 and <= Key.NumPad9 ? k - Key.NumPad0 : null;
+
     private void OnAnyKeyDown(object sender, KeyEventArgs e)
     {
         // Vain tämä ikkuna tai sen omistama overlay-ikkuna (ei esim. VOD-soitin)
@@ -212,6 +264,12 @@ public partial class MainWindow : Window
         {
             // Äänenhallinta: M aina, nuolet vain koko näytössä (muuten ne selaavat listoja)
             if (e.Key == Key.M) { _live.Playback.ToggleMuteCommand.Execute(null); e.Handled = true; }
+            else if (DigitOf(e.Key) is { } digit) { _live.TypeDigit(digit); e.Handled = true; }
+            else if (e.Key == Key.Back) { _live.PreviousChannel(); e.Handled = true; }
+            else if (e.Key == Key.PageUp) { _live.PlayAdjacent(-1); e.Handled = true; }
+            else if (e.Key == Key.PageDown) { _live.PlayAdjacent(1); e.Handled = true; }
+            else if (e.Key == Key.J) { _live.Playback.ShiftAudio(-100); e.Handled = true; }
+            else if (e.Key == Key.K) { _live.Playback.ShiftAudio(100); e.Handled = true; }
             else if (_live.IsFullscreen && e.Key == Key.Up) { _live.Playback.VolumeUpCommand.Execute(null); e.Handled = true; }
             else if (_live.IsFullscreen && e.Key == Key.Down) { _live.Playback.VolumeDownCommand.Execute(null); e.Handled = true; }
         }

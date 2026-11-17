@@ -26,7 +26,8 @@ var channels = Enumerable.Range(1, 320).Select(i => new
     epg_channel_id = i % 13 == 0 ? null : $"ch{i}.fi",
     added = "1700000000",
     category_id = (((i - 1) % catNames.Length) + 1).ToString(),
-    tv_archive = 0,
+    tv_archive = i % 4 == 0 ? 1 : 0,
+    tv_archive_duration = i % 4 == 0 ? 3 : 0,
 }).ToList();
 
 // EPG: ohjelmia nyt -8 h ... +30 h
@@ -88,7 +89,9 @@ async Task Handle(HttpListenerContext ctx)
         if (path == "/player_api.php") await Api(req, res);
         else if (path == "/xmltv.php") await Xmltv(req, res);
         else if (path.StartsWith("/img/")) await Img(path, res);
+        else if ((path.StartsWith("/movie/") || path.StartsWith("/series/")) && SampleFile() is { } f) await ServeFile(f, req, res);
         else if (path.StartsWith("/live/") || path.StartsWith("/movie/") || path.StartsWith("/series/")) await Mjpeg(path, res);
+        else if (path.StartsWith("/timeshift/")) await Mjpeg(path, res);
         else { res.StatusCode = 404; res.Close(); }
     }
     catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException) { }
@@ -230,18 +233,58 @@ async Task Img(string path, HttpListenerResponse res)
     res.Close();
 }
 
+// Testivideo elokuville ja jaksoille (pituus + haku → jatka katsomista / seuraava jakso testattavissa)
+string? SampleFile()
+{
+    var f = Path.Combine(AppContext.BaseDirectory, "sample.ts");
+    return File.Exists(f) ? f : null;
+}
+
+async Task ServeFile(string file, HttpListenerRequest req, HttpListenerResponse res)
+{
+    var len = new FileInfo(file).Length;
+    long from = 0, to = len - 1;
+    var range = req.Headers["Range"];
+    if (range is not null && range.StartsWith("bytes="))
+    {
+        var parts = range[6..].Split('-');
+        if (long.TryParse(parts[0], out var a)) from = a;
+        if (parts.Length > 1 && long.TryParse(parts[1], out var b)) to = Math.Min(b, len - 1);
+        res.StatusCode = 206;
+        res.AddHeader("Content-Range", $"bytes {from}-{to}/{len}");
+    }
+    res.AddHeader("Accept-Ranges", "bytes");
+    res.ContentType = "video/mp2t";
+    res.ContentLength64 = to - from + 1;
+    await using var fs = File.OpenRead(file);
+    fs.Position = from;
+    var buf = new byte[64 * 1024];
+    var left = to - from + 1;
+    while (left > 0)
+    {
+        var n = await fs.ReadAsync(buf.AsMemory(0, (int)Math.Min(buf.Length, left)));
+        if (n <= 0) break;
+        await res.OutputStream.WriteAsync(buf.AsMemory(0, n));
+        left -= n;
+    }
+    res.Close();
+}
+
 // Liikkuva testikuva MJPEG-virtana (multipart/x-mixed-replace), jota VLC osaa toistaa
 async Task Mjpeg(string path, HttpListenerResponse res)
 {
     var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
     if (parts.Length < 4 || parts[1] != User || parts[2] != Pass) { res.StatusCode = 401; res.Close(); return; }
-    var id = Path.GetFileNameWithoutExtension(parts[3]);
+    var id = Path.GetFileNameWithoutExtension(parts[^1]);
     var label = parts[0] switch
     {
         "live" => channels.FirstOrDefault(c => c.stream_id.ToString() == id)?.name ?? id,
         "movie" => $"Elokuva {id}",
+        "timeshift" => $"Arkisto {parts[4]}",
         _ => $"Jakso {id}",
     };
+    // Kanava 1050 katkeaa 8 s välein (uudelleenyhdistyksen testi)
+    var dropAt = parts[0] == "live" && id == "1050" ? DateTime.Now.AddSeconds(8) : DateTime.MaxValue;
     res.ContentType = "multipart/x-mixed-replace; boundary=frame";
     res.SendChunked = true;
     var codec = ImageCodecInfo.GetImageEncoders().First(c => c.MimeType == "image/jpeg");
@@ -250,7 +293,7 @@ async Task Mjpeg(string path, HttpListenerResponse res)
     var frame = 0;
     using var big = new Font("Segoe UI", 48, FontStyle.Bold);
     using var small = new Font("Segoe UI", 24);
-    while (true)
+    while (DateTime.Now < dropAt)
     {
         using var bmp = new Bitmap(960, 540);
         using (var g = Graphics.FromImage(bmp))
@@ -271,6 +314,7 @@ async Task Mjpeg(string path, HttpListenerResponse res)
         frame++;
         await Task.Delay(80);
     }
+    res.Abort(); // katkaistaan yhteys (testikanava)
 }
 
 static Color FromHsv(double h, double s, double v)

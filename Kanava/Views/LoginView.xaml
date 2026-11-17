@@ -9,28 +9,87 @@
             </RadialGradientBrush>
         </Grid.Background>
 
-        <Border Width="420" VerticalAlignment="Center" HorizontalAlignment="Center" Background="#E6181818"
+        <Border Width="460" VerticalAlignment="Center" HorizontalAlignment="Center" Background="#E6181818"
                 CornerRadius="14" Padding="36,32" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <Image Source="/Assets/Tollo.png" Width="44" Height="44" Margin="0,0,14,0" RenderOptions.BitmapScalingMode="HighQuality" />
                     <TextBlock Text="Töllö" FontSize="32" FontWeight="Bold" VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Text="Kirjaudu IPTV-palveluun (Xtream Codes)" Style="{StaticResource Dim}" Margin="0,0,0,26" />
+                <TextBlock Text="Kirjaudu IPTV-palveluun" Style="{StaticResource Dim}" Margin="0,0,0,18" />
 
-                <TextBlock Text="Palvelimen osoite" Style="{StaticResource Dim}" Margin="0,0,0,6" />
-                <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16" />
+                <!-- Tallennetut tilit -->
+                <StackPanel Visibility="{Binding HasAccounts, Converter={StaticResource BoolToVis}}" Margin="0,0,0,14">
+                    <TextBlock Text="Tallennetut tilit" Style="{StaticResource Dim}" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding Accounts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#22FFFFFF" CornerRadius="8" Margin="0,0,0,6">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" Margin="0,0,6,0"
+                                                ToolTip="Poista tili (myös tallennettu salasana)" AutomationProperties.Name="{Binding Title, StringFormat=Poista tili {0}}"
+                                                Command="{Binding DataContext.RemoveAccountCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
+                                        <Button Background="Transparent" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Stretch" Padding="12,8"
+                                                AutomationProperties.Name="{Binding Title, StringFormat=Kirjaudu tilillä {0}}"
+                                                Command="{Binding DataContext.LoginSavedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Glyph}" Style="{StaticResource Icon}" FontSize="16" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="290" />
+                                                    <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource TextFaintBrush}" FontSize="11.5" TextTrimming="CharacterEllipsis" MaxWidth="290" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Button>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="tai lisää uusi:" Style="{StaticResource Dim}" Margin="0,8,0,0" />
+                </StackPanel>
 
-                <TextBlock Text="Käyttäjätunnus" Style="{StaticResource Dim}" Margin="0,0,0,6" />
-                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16" />
+                <!-- Tilin tyyppi -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <RadioButton Style="{StaticResource TabItemRadio}" GroupName="LoginMode" Content="Xtream Codes" IsChecked="{Binding IsXtream}" />
+                    <RadioButton Style="{StaticResource TabItemRadio}" GroupName="LoginMode" Content="M3U-soittolista" IsChecked="{Binding IsM3u}" />
+                </StackPanel>
 
-                <TextBlock Text="Salasana" Style="{StaticResource Dim}" Margin="0,0,0,6" />
-                <Grid Margin="0,0,0,18">
-                    <PasswordBox x:Name="PasswordBox" PasswordChanged="OnPasswordChanged" />
-                    <TextBlock Text="••••••••  (tallennettu salasana)" Foreground="{StaticResource TextFaintBrush}" IsHitTestVisible="False"
-                               VerticalAlignment="Center" Margin="12,0,0,0"
-                               Visibility="{Binding ShowSavedPasswordHint, Converter={StaticResource BoolToVis}}" />
-                </Grid>
+                <!-- Xtream -->
+                <StackPanel Visibility="{Binding IsXtream, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Palvelimen osoite" Style="{StaticResource Dim}" Margin="0,0,0,6" />
+                    <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16" AutomationProperties.Name="Palvelimen osoite" />
+
+                    <TextBlock Text="Käyttäjätunnus" Style="{StaticResource Dim}" Margin="0,0,0,6" />
+                    <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16" AutomationProperties.Name="Käyttäjätunnus" />
+
+                    <TextBlock Text="Salasana" Style="{StaticResource Dim}" Margin="0,0,0,6" />
+                    <Grid Margin="0,0,0,18">
+                        <PasswordBox x:Name="PasswordBox" PasswordChanged="OnPasswordChanged" AutomationProperties.Name="Salasana" />
+                        <TextBlock Text="••••••••  (tallennettu salasana)" Foreground="{StaticResource TextFaintBrush}" IsHitTestVisible="False"
+                                   VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Visibility="{Binding ShowSavedPasswordHint, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                </StackPanel>
+
+                <!-- M3U -->
+                <StackPanel Visibility="{Binding IsM3u, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Soittolistan osoite tai tiedosto (.m3u / .m3u8)" Style="{StaticResource Dim}" Margin="0,0,0,6" />
+                    <DockPanel Margin="0,0,0,16">
+                        <Button DockPanel.Dock="Right" Content="Selaa…" Padding="12,6" Margin="6,0,0,0" VerticalAlignment="Center" Command="{Binding BrowseM3uCommand}" />
+                        <TextBox Text="{Binding M3uUrl, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Soittolistan osoite" />
+                    </DockPanel>
+                    <TextBlock Text="Nimi (valinnainen)" Style="{StaticResource Dim}" Margin="0,0,0,6" />
+                    <TextBox Text="{Binding M3uName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" AutomationProperties.Name="Soittolistan nimi" />
+                    <TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource TextFaintBrush}" Margin="0,0,0,14"
+                               Text="Soittolistasta näytetään live-kanavat. Ohjelmaopas haetaan soittolistan url-tvg-osoitteesta tai Asetusten ulkoisista oppaista." />
+                </StackPanel>
 
                 <CheckBox Content="Muista kirjautuminen" IsChecked="{Binding RememberMe}" Margin="0,0,0,22" />
 

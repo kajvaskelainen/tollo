@@ -4,6 +4,11 @@ namespace Kanava.Models;
 
 public sealed class Credentials
 {
+    /// <summary>"xtream" tai "m3u" (ServerUrl = soittolistan osoite tai tiedosto).</summary>
+    public string Kind { get; set; } = "xtream";
+    /// <summary>Käyttäjän antama nimi tilille (valinnainen).</summary>
+    public string Name { get; set; } = "";
+    public bool IsM3u => Kind == "m3u";
     public string ServerUrl { get; set; } = "";
     public string Username { get; set; } = "";
     public string Password { get; set; } = "";
@@ -25,6 +30,8 @@ public sealed class Credentials
 
 public sealed class AccountInfo
 {
+    /// <summary>Esim. "Europe/Helsinki" (server_info.timezone).</summary>
+    public string ServerTimeZone { get; init; } = "";
     public string Username { get; init; } = "";
     public string Status { get; init; } = "";
     public DateTime? ExpiresAt { get; init; }
@@ -43,7 +50,7 @@ public sealed class Category
     public override string ToString() => Name;
 }
 
-public enum SpecialCategory { None, History, Favorites, All }
+public enum SpecialCategory { None, History, Favorites, All, Continue }
 
 public partial class LiveChannel : ObservableObject
 {
@@ -54,6 +61,8 @@ public partial class LiveChannel : ObservableObject
     public string? EpgChannelId { get; init; }
     public string CategoryId { get; init; } = "";
     public bool HasArchive { get; init; }
+    /// <summary>Kuinka monta päivää taaksepäin jälkikatselu on saatavilla.</summary>
+    public int ArchiveDays { get; init; }
 
     [ObservableProperty] private bool _isFavorite;
 
@@ -77,7 +86,11 @@ public partial class VodItem : ObservableObject
     public DateTime? Added { get; init; }
 
     [ObservableProperty] private bool _isFavorite;
+    /// <summary>Katselukohta 0–1 (jatka katsomista); 0 = ei aloitettu.</summary>
+    [ObservableProperty] private double _progress;
+    [ObservableProperty] private bool _isWatched;
 
+    public string ProgressKey => $"movie:{StreamId}";
     public string RatingText => Rating > 0 ? Rating.ToString("0.0") : "";
     public override string ToString() => Name;
 }
@@ -128,7 +141,7 @@ public sealed class Season
     public override string ToString() => Name;
 }
 
-public sealed class Episode
+public partial class Episode : ObservableObject
 {
     public string Id { get; init; } = "";
     public int Number { get; init; }
@@ -139,6 +152,10 @@ public sealed class Episode
     public string? Image { get; init; }
     public string ContainerExtension { get; init; } = "mp4";
     public string Label => $"{Number}. {Title}";
+    public string ProgressKey => $"ep:{Id}";
+
+    [ObservableProperty] private double _progress;
+    [ObservableProperty] private bool _isWatched;
     public override string ToString() => Label;
 }
 

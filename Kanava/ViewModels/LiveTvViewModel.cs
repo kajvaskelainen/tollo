@@ -29,6 +29,15 @@ public partial class LiveTvViewModel : ObservableObject
     [ObservableProperty] private DateTime _now = DateTime.Now;
     [ObservableProperty] private string _guideStatus = "";
     [ObservableProperty] private bool _isFullscreen;
+    /// <summary>Tallennetaanko toistettavaa kanavaa (REC-merkki).</summary>
+    [ObservableProperty] private bool _isRecordingPlaying;
+    /// <summary>Asettaa MainViewModel: onko kanavalla käynnissä tallennus.</summary>
+    public Func<int, bool>? IsRecording { get; set; }
+    public void RefreshRecording() => IsRecordingPlaying = PlayingChannel is { } c && IsRecording?.Invoke(c.StreamId) == true;
+    partial void OnPlayingChannelChanged(LiveChannel? value) => RefreshRecording();
+
+    /// <summary>Esim. "Yhteys katkesi – yhdistetään uudelleen (2/8)…" – näytetään kuvan päällä.</summary>
+    [ObservableProperty] private string _streamStatus = "";
     /// <summary>Kasvaa aina kun opas päivittyy (EPG-ruudukko piirtää uudelleen).</summary>
     [ObservableProperty] private int _guideVersion;
 
@@ -36,6 +45,10 @@ public partial class LiveTvViewModel : ObservableObject
     {
         _session = session;
         Playback = new PlaybackViewModel(session.Player.Preview, session.Player.LibVLC, session.Settings);
+        Playback.RestartRequested = () => _session.Player.Restart(ActivePlayer);
+        session.Player.Reconnecting += OnReconnecting;
+        session.Player.ReconnectFailed += OnReconnectFailed;
+        session.Player.Preview.Playing += (_, _) => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => StreamStatus = "");
         _clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
         _clock.Tick += (_, _) => Tick();
         _clock.Start();
@@ -185,11 +198,99 @@ public partial class LiveTvViewModel : ObservableObject
     public void Play(LiveChannel channel)
     {
         if (PlayingChannel == channel) return;
+        if (PlayingChannel is { } prev) _previousChannel = prev;
         PlayingChannel = channel;
+        StreamStatus = "";
         Playback.Reset();
+        Playback.SetSyncKey(SyncKey(channel));
         _session.Player.Play(ActivePlayer, LiveUrl(channel));
         _session.UserData.AddLiveHistory(channel.StreamId);
         _ = LoadNowNextAsync(channel);
+    }
+
+    public static string SyncKey(LiveChannel c) => $"live:{c.StreamId}";
+
+    private void OnReconnecting(LibVLCSharp.Shared.MediaPlayer player, int attempt, int max) =>
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (player == ActivePlayer && PlayingChannel is not null) StreamStatus = $"Yhteys katkesi – yhdistetään uudelleen ({attempt}/{max})…";
+        });
+
+    private void OnReconnectFailed(LibVLCSharp.Shared.MediaPlayer player) =>
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (player == ActivePlayer && PlayingChannel is not null) StreamStatus = "Lähetys ei vastaa. Valitse kanava uudelleen tai kokeile myöhemmin.";
+        });
+
+    // ---------- Kanavanvaihto näppäimillä ----------
+
+    private LiveChannel? _previousChannel;
+    private string _numberBuffer = "";
+    private DispatcherTimer? _numberTimer;
+
+    /// <summary>Numeronäppäin: kerätään kanavanumero ja vaihdetaan 1,5 s tauon jälkeen.</summary>
+    public void TypeDigit(int digit)
+    {
+        if (_numberBuffer.Length >= 5) _numberBuffer = "";
+        _numberBuffer += digit.ToString();
+        Playback.ShowOsd($"Kanava {_numberBuffer}–");
+        _numberTimer ??= new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Normal, (_, _) => CommitNumber(), Dispatcher.CurrentDispatcher);
+        _numberTimer.Stop();
+        _numberTimer.Start();
+    }
+
+    private void CommitNumber()
+    {
+        _numberTimer?.Stop();
+        var text = _numberBuffer;
+        _numberBuffer = "";
+        if (!int.TryParse(text, out var n)) return;
+        var ch = _all.FirstOrDefault(c => c.Number == n);
+        if (ch is null) { Playback.ShowOsd($"Kanavaa {n} ei löydy"); return; }
+        SelectAndPlay(ch);
+    }
+
+    /// <summary>Valitsee kanavan; jos se ei ole nykyisessä listassa, vaihdetaan "Kaikki kanavat" -näkymään.</summary>
+    public void SelectAndPlay(LiveChannel ch)
+    {
+        if (!Channels.Contains(ch) && Categories.FirstOrDefault(c => c.Special == SpecialCategory.All) is { } all)
+        {
+            SearchText = "";
+            SelectedCategory = all;
+        }
+        SelectedChannel = ch;
+        if (PlayingChannel != ch) Play(ch);
+    }
+
+    /// <summary>Edellinen katsottu kanava (Backspace).</summary>
+    public void PreviousChannel()
+    {
+        if (_previousChannel is { } p && p != PlayingChannel && _all.Contains(p)) SelectAndPlay(p);
+        else Playback.ShowOsd("Ei edellistä kanavaa");
+    }
+
+    // ---------- Jälkikatselu ----------
+
+    /// <summary>Toistopyyntö menneelle (tai käynnissä olevalle, alusta) ohjelmalle palvelimen arkistosta.</summary>
+    public PlaybackRequest CatchupRequest(LiveChannel ch, EpgProgram p)
+    {
+        var minutes = (int)Math.Ceiling((p.End - p.Start).TotalMinutes) + 2;
+        return new PlaybackRequest
+        {
+            Url = _session.Client.TimeshiftUrl(ch.StreamId, p.Start, minutes),
+            Title = $"{ch.Name} – {p.Title} ({p.Start:d.M. HH.mm})",
+            SyncKey = SyncKey(ch),
+        };
+    }
+
+    /// <summary>Pysäyttää toiston kokonaan (uniajastin).</summary>
+    public void StopPlayback()
+    {
+        IsFullscreen = false;
+        _session.Player.Stop(ActivePlayer);
+        SelectedChannel = null;
+        PlayingChannel = null;
+        StreamStatus = "";
     }
 
     private string LiveUrl(LiveChannel c) => _session.Client.LiveUrl(c.StreamId, _session.Settings.Settings.LiveFormat);

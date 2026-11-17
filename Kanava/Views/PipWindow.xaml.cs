@@ -24,6 +24,7 @@ public partial class PipWindow : Window
     private readonly PlaybackViewModel _playback;
     private readonly DispatcherTimer _hide = new() { Interval = TimeSpan.FromSeconds(2.5) };
     private readonly IntPtr _monitorHint;
+    private string _lastOsd = "";
 
     /// <summary>Käyttäjä haluaa takaisin pääikkunaan (palautusnappi tai tuplaklikkaus).</summary>
     public event Action? RestoreRequested;
@@ -46,6 +47,15 @@ public partial class PipWindow : Window
         Height = Math.Round(Width * 9 / 16);
 
         _player.Playing += (_, _) => Dispatcher.BeginInvoke(() => StatusText.Visibility = Visibility.Collapsed);
+        _playback.RestartRequested = () => _service.Restart(_player);
+        if (live.PlayingChannel is { } ch0) _playback.SetSyncKey(LiveTvViewModel.SyncKey(ch0));
+        _playback.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(PlaybackViewModel.Osd)) return;
+            if (_playback.Osd.Length > 0) { _lastOsd = _playback.Osd; ShowStatus(_lastOsd); }
+            else if (StatusText.Text == _lastOsd) StatusText.Visibility = Visibility.Collapsed;
+        };
+        service.Reconnecting += OnReconnecting;
         _player.EncounteredError += (_, _) => Dispatcher.BeginInvoke(() => ShowStatus("Toisto epäonnistui."));
         live.PropertyChanged += OnLiveChanged;
         _hide.Tick += (_, _) => { _hide.Stop(); if (!Overlay.IsMouseOver) Controls.Visibility = Visibility.Collapsed; };
@@ -72,7 +82,17 @@ public partial class PipWindow : Window
 
     private void OnLiveChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(LiveTvViewModel.PlayingChannel)) { ShowStatus("Ladataan…"); ShowControlsBriefly(); }
+        if (e.PropertyName == nameof(LiveTvViewModel.PlayingChannel))
+        {
+            if (_live.PlayingChannel is { } ch) _playback.SetSyncKey(LiveTvViewModel.SyncKey(ch));
+            ShowStatus("Ladataan…");
+            ShowControlsBriefly();
+        }
+    }
+
+    private void OnReconnecting(MediaPlayer player, int attempt, int max)
+    {
+        if (player == _player) Dispatcher.BeginInvoke(() => ShowStatus($"Yhdistetään uudelleen ({attempt}/{max})…"));
     }
 
     private void ShowStatus(string text)
@@ -157,6 +177,7 @@ public partial class PipWindow : Window
     {
         _hide.Stop();
         _live.PropertyChanged -= OnLiveChanged;
+        _service.Reconnecting -= OnReconnecting;
         _playback.Dispose();
         try { _settings.Save(); } catch { }
         Video.MediaPlayer = null;

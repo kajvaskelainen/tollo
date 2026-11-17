@@ -1,8 +1,13 @@
 # Töllö – IPTV-soitin Windowsille
 
-Töllö on Windows-soitin Xtream Codes -yhteensopiville IPTV-palveluille: live-kanavat, TV-opas,
-elokuvat ja sarjat. **Töllö on pelkkä soitin – se ei sisällä eikä välitä mitään sisältöä.**
-Tarvitset oman IPTV-tilauksen (palvelimen osoite, käyttäjätunnus ja salasana).
+Töllö on Windows-soitin Xtream Codes -yhteensopiville IPTV-palveluille ja M3U-soittolistoille:
+live-kanavat, TV-opas, elokuvat ja sarjat. **Töllö on pelkkä soitin – se ei sisällä eikä välitä mitään sisältöä.**
+Tarvitset oman IPTV-tilauksen (palvelimen osoite, käyttäjätunnus ja salasana tai M3U-soittolista).
+
+Ominaisuuksia: TV-opas (myös ilmaiset ulkoiset XMLTV-oppaat), jälkikatselu (catch-up), muistutukset,
+tallennus ja ajastetut tallennukset, pienoissoitin, monikatselu (2×2), jatka katsomista ja sarjojen
+seuraava jakso, äänen synkronointi, kuvasuhde ja zoom, äänen tasoitus, uniajastin, automaattinen
+uudelleenyhdistys, Chromecast-suoratoisto, useat tilit, kanavien hallinta ja varmuuskopio.
 
 ## Asennus
 
@@ -83,9 +88,13 @@ dotnet run --project MockXtream -- 8085
 ## Pikanäppäimet
 
 - Live TV: klikkaus = esikatselu, tuplaklikkaus / F / F11 = koko näyttö, Esc = takaisin, P = pienoissoitin
+- Kanavanvaihto: numerot = kanavanumero, Backspace = edellinen kanava, PageUp/PageDown = kanava ylös/alas
+- Ääni: M = mykistys, J/K = ääni 0,1 s aiemmin/myöhemmin (muistetaan kanavakohtaisesti)
 - Pienoissoitin: raahaa = siirrä kulmaan, rulla = äänenvoimakkuus, tuplaklikkaus = takaisin Töllöön
-- TV-opas: rulla = kanavat, Shift+rulla tai vetäminen = aika, ↑↓ = kanava, Enter = koko näyttö
-- Elokuvat/jaksot: välilyönti = tauko, ← −10 s, → +30 s, ↑↓ = äänenvoimakkuus, Esc = sulje
+- TV-opas: rulla = kanavat, Shift+rulla tai vetäminen = aika, ↑↓ = kanava, Enter = koko näyttö,
+  hiiren oikea = jälkikatselu / muistutus / tallennus, tuplaklikkaus menneeseen ohjelmaan = jälkikatselu
+- Elokuvat/jaksot: välilyönti = tauko, ← −10 s, → +30 s, ↑↓ = äänenvoimakkuus, Home = alkuun, N = seuraava jakso, Esc = sulje
+- Monikatselu: kaksoisklikkaa kanavaa, klikkaa ruutua (ääni), 1–4 = valitse ruutu, Delete = tyhjennä, F11 = koko näyttö
 
 ## Tiedostot
 

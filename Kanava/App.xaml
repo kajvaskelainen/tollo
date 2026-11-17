@@ -10,6 +10,7 @@
             </ResourceDictionary.MergedDictionaries>
             <local:BoolToVisibilityConverter x:Key="BoolToVis" />
             <local:NullToVisibilityConverter x:Key="NullToVis" />
+            <local:PositiveToVisibilityConverter x:Key="PositiveToVis" />
             <local:EqualsConverter x:Key="Equals" />
             <local:ProgressWidthConverter x:Key="ProgressWidth" />
             <local:AspectWidthConverter x:Key="AspectWidth" />

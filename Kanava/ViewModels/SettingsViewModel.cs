@@ -17,9 +17,14 @@ public partial class SettingsViewModel : ObservableObject
     public UpdateViewModel Updates { get; }
     public EpgSourcesViewModel EpgSources { get; }
 
-    public SettingsViewModel(AppSession session, UpdateViewModel updates)
+    private readonly MainViewModel _main;
+
+    public SettingsViewModel(AppSession session, UpdateViewModel updates, MainViewModel main)
     {
         _session = session;
+        _main = main;
+        if (main.Recordings is { } recs) recs.Changed += () => System.Windows.Application.Current?.Dispatcher.BeginInvoke(RefreshRecordings);
+        RefreshRecordings();
         Updates = updates;
         EpgSources = new EpgSourcesViewModel(session);
         _liveFormat = session.Settings.Settings.LiveFormat;
@@ -132,6 +137,109 @@ public partial class SettingsViewModel : ObservableObject
         catch (Exception ex) { Message = "Poisto epäonnistui: " + ex.Message; }
     }
 
+    // ---------- Tallennukset ----------
+
+    public System.Collections.ObjectModel.ObservableCollection<RecordingRow> RecordingRows { get; } = [];
+    public bool HasRecordings => RecordingRows.Count > 0;
+    public string RecordingFolder => _main.Recordings?.Folder ?? "";
+
+    private void RefreshRecordings()
+    {
+        RecordingRows.Clear();
+        if (_main.Recordings is not { } recs) return;
+        foreach (var r in recs.All.OrderBy(r => r.Status switch { "Recording" => 0, "Scheduled" => 1, _ => 2 }).ThenByDescending(r => r.Start))
+            RecordingRows.Add(new RecordingRow(r, () => recs.Cancel(r.Id)));
+        OnPropertyChanged(nameof(HasRecordings));
+    }
+
+    [RelayCommand]
+    private void ChooseRecordingFolder()
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Valitse tallennusten kansio", InitialDirectory = RecordingFolder };
+        if (dlg.ShowDialog() != true) return;
+        _session.Settings.Settings.RecordingFolder = dlg.FolderName;
+        _session.Settings.Save();
+        OnPropertyChanged(nameof(RecordingFolder));
+        Message = "Tallennusten kansio vaihdettu.";
+    }
+
+    [RelayCommand]
+    private void OpenRecordingFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(RecordingFolder);
+            System.Diagnostics.Process.Start("explorer.exe", RecordingFolder);
+        }
+        catch (Exception ex) { Message = "Kansiota ei voitu avata: " + ex.Message; }
+    }
+
+    [RelayCommand]
+    private void ClearFinishedRecordings() => _main.Recordings?.ClearFinished();
+
+    // ---------- Varmuuskopio ----------
+
+    [RelayCommand]
+    private void ExportBackup()
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Vie Töllön varmuuskopio",
+            FileName = $"Tollo-varmuuskopio-{DateTime.Now:yyyy-MM-dd}.json",
+            Filter = "Töllön varmuuskopio (*.json)|*.json",
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            _session.UserData.SaveNow();
+            BackupService.Export(dlg.FileName, _session.Settings, _session.UserData);
+            Message = "Varmuuskopio tallennettu: " + Path.GetFileName(dlg.FileName);
+        }
+        catch (Exception ex) { Message = "Vienti epäonnistui: " + ex.Message; }
+    }
+
+    [RelayCommand]
+    private void ImportBackup()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Tuo Töllön varmuuskopio", Filter = "Töllön varmuuskopio (*.json)|*.json" };
+        if (dlg.ShowDialog() != true) return;
+        var ok = System.Windows.MessageBox.Show(
+            "Varmuuskopio korvaa nykyiset suosikit, piilotukset, järjestykset, katselukohdat ja asetukset. Kirjautumistiedot säilyvät.\n\nTöllö käynnistyy uudelleen. Jatketaanko?",
+            "Tuo varmuuskopio", System.Windows.MessageBoxButton.OKCancel, System.Windows.MessageBoxImage.Question);
+        if (ok != System.Windows.MessageBoxResult.OK) return;
+        try
+        {
+            BackupService.Import(dlg.FileName, _session.Settings, _session.UserData);
+            // Uudelleenkäynnistys lataa kaiken varmuuskopiosta
+            if (Environment.ProcessPath is { } exe) System.Diagnostics.Process.Start(exe);
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch (Exception ex) { Message = "Tuonti epäonnistui: " + ex.Message; }
+    }
+
     [RelayCommand]
     private void OpenDataFolder() => System.Diagnostics.Process.Start("explorer.exe", AppPaths.Root);
+}
+
+/// <summary>Tallennus asetusten listassa.</summary>
+public sealed class RecordingRow(Recording r, Action cancel)
+{
+    public string Title => r.Title;
+    public string Subtitle => $"{r.ChannelName} · {r.Start:ddd d.M. HH.mm}–{r.End:HH.mm}";
+    public string StatusText => r.Status switch
+    {
+        "Scheduled" => "Ajastettu",
+        "Recording" => "● Tallentaa",
+        "Done" => "Valmis",
+        "Failed" => "Epäonnistui" + (r.Error is { } e ? ": " + e : ""),
+        _ => "Peruttu",
+    };
+    public bool CanCancel => r.Status is "Scheduled" or "Recording";
+    public string CancelText => r.Status == "Recording" ? "Lopeta" : "Peru";
+    public bool HasFile => r.Status == "Done" && r.File is { } f && File.Exists(f);
+    public IRelayCommand CancelCommand { get; } = new RelayCommand(cancel);
+    public IRelayCommand OpenCommand { get; } = new RelayCommand(() =>
+    {
+        if (r.File is { } f && File.Exists(f)) System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{f}\"");
+    });
 }

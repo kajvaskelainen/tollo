@@ -58,6 +58,9 @@ public sealed class EpgGrid : Grid
         _h.Value = s.OffsetX;
     }
 
+    /// <summary>Piirtää oppaan uudelleen (esim. muistutusmerkit).</summary>
+    public void InvalidateGuide() => _surface.InvalidateVisual();
+
     /// <summary>Vierittää nykyhetkeen.</summary>
     public void ScrollToNow() => _surface.ScrollToNow();
 
@@ -91,6 +94,21 @@ public sealed class EpgGrid : Grid
 
     public static readonly DependencyProperty FavoriteCommandProperty = DependencyProperty.Register(
         nameof(FavoriteCommand), typeof(ICommand), typeof(EpgGrid));
+
+    /// <summary>Onko ohjelmalle asetettu muistutus (kellomerkki).</summary>
+    public Func<LiveChannel, EpgProgram, bool>? IsReminded { get; set; }
+    /// <summary>Onko ohjelma ajastettu tallennettavaksi (tallennusmerkki).</summary>
+    public Func<LiveChannel, EpgProgram, bool>? IsRecorded { get; set; }
+    /// <summary>Hiiren oikea painike ohjelman päällä (valikko: jälkikatselu, muistutus).</summary>
+    public event Action<LiveChannel, EpgProgram>? ProgramMenuRequested;
+    /// <summary>Tuplaklikkaus ohjelmaan; palauttaa true, jos käsitelty (esim. jälkikatselu).</summary>
+    public Func<LiveChannel, EpgProgram, bool>? ProgramActivated { get; set; }
+
+    internal void RaiseProgramMenu(LiveChannel ch, EpgProgram p) => ProgramMenuRequested?.Invoke(ch, p);
+
+    /// <summary>Jälkikatselu mahdollinen: kanavalla arkisto ja ohjelma alkanut arkistoajan sisällä.</summary>
+    public static bool CatchupAvailable(LiveChannel ch, EpgProgram p, DateTime now) =>
+        ch.HasArchive && p.Start < now && p.Start >= now.AddDays(-(ch.ArchiveDays > 0 ? ch.ArchiveDays : 3));
 
     public IList? Channels { get => (IList?)GetValue(ChannelsProperty); set => SetValue(ChannelsProperty, value); }
     public EpgService? Epg { get => (EpgService?)GetValue(EpgProperty); set => SetValue(EpgProperty, value); }
@@ -312,6 +330,13 @@ internal sealed class EpgSurface : FrameworkElement
                 var tx = Math.Max(rect.Left, ChannelWidth) + 10;
                 var maxW = rect.Right - tx - 8;
                 if (maxW < 14) continue;
+                // Merkit: jälkikatselu (historia) ja muistutus (kello)
+                var mark = Owner.IsRecorded?.Invoke(ch, p) == true ? "\uE7C8" : Owner.IsReminded?.Invoke(ch, p) == true ? "\uEA8F" : EpgGrid.CatchupAvailable(ch, p, now) ? "\uE81C" : null;
+                if (mark is not null && maxW > 50)
+                {
+                    DrawText(dc, mark, Icons, 12, mark == "\uE81C" ? TextDim : Accent, new Point(rect.Right - 22, y + 12), 16, dpi);
+                    maxW -= 18;
+                }
                 DrawText(dc, p.Title, Semi, 13, p.End <= now ? TextDim : Text, new Point(tx, y + 11), maxW, dpi);
                 DrawText(dc, p.TimeText, Regular, 11, TextDim, new Point(tx, y + 31), maxW, dpi);
                 if (isNow)
@@ -480,6 +505,7 @@ internal sealed class EpgSurface : FrameworkElement
 
         if (e.ClickCount == 2)
         {
+            if (ProgramAt(p, out var pch) is { } prog && pch is not null && Owner.ProgramActivated?.Invoke(pch, prog) == true) { e.Handled = true; return; }
             if (ch is not null && Owner.ActivateCommand?.CanExecute(ch) == true) Owner.ActivateCommand.Execute(ch);
             e.Handled = true;
             return;
@@ -524,6 +550,15 @@ internal sealed class EpgSurface : FrameworkElement
         Cursor = Cursors.Arrow;
         ReleaseMouseCapture();
         if (!wasDrag && ChannelAt(RowAt(p.Y)) is { } ch) Owner.SelectedChannel = ch;
+    }
+
+    protected override void OnMouseRightButtonUp(MouseButtonEventArgs e)
+    {
+        if (ProgramAt(e.GetPosition(this), out var ch) is { } prog && ch is not null)
+        {
+            Owner.RaiseProgramMenu(ch, prog);
+            e.Handled = true;
+        }
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)

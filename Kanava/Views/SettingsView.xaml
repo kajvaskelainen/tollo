@@ -181,6 +181,52 @@
 
             <Border Style="{StaticResource Card}">
                 <StackPanel>
+                    <TextBlock Text="Tallennukset" Style="{StaticResource CardTitle}" />
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,0,0,10"
+                               Text="Tallenna kanava Live TV:n tallennusnapista tai ajasta ohjelma TV-oppaasta (hiiren oikea painike). Tallennus käyttää oman yhteyden – jos tilauksesi sallii vain yhden yhteyden, katselu ja tallennus eivät onnistu yhtä aikaa. Töllön on oltava käynnissä tallennuksen aikana." />
+                    <DockPanel Margin="0,0,0,10">
+                        <Button DockPanel.Dock="Right" Content="Avaa kansio" Padding="12,5" Margin="6,0,0,0" Command="{Binding OpenRecordingFolderCommand}" />
+                        <Button DockPanel.Dock="Right" Content="Vaihda kansio…" Padding="12,5" Command="{Binding ChooseRecordingFolderCommand}" />
+                        <TextBlock Text="{Binding RecordingFolder}" Style="{StaticResource Dim}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <TextBlock Text="Ei tallennuksia." Foreground="{StaticResource TextFaintBrush}" FontSize="12"
+                               Visibility="{Binding HasRecordings, Converter={StaticResource BoolToVis}, ConverterParameter=!}" />
+                    <ItemsControl ItemsSource="{Binding RecordingRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Right" Content="{Binding CancelText}" Padding="12,4" Margin="6,0,0,0" Command="{Binding CancelCommand}"
+                                            Visibility="{Binding CanCancel, Converter={StaticResource BoolToVis}}" />
+                                    <Button DockPanel.Dock="Right" Content="Näytä" Padding="12,4" Margin="6,0,0,0" Command="{Binding OpenCommand}"
+                                            Visibility="{Binding HasFile, Converter={StaticResource BoolToVis}}" />
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" Style="{StaticResource Dim}" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0" MaxWidth="220" TextTrimming="CharacterEllipsis" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource TextFaintBrush}" FontSize="11.5" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="Tyhjennä valmiit" HorizontalAlignment="Left" Padding="12,5" Margin="0,4,0,0" Command="{Binding ClearFinishedRecordingsCommand}"
+                            Visibility="{Binding HasRecordings, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Varmuuskopio" Style="{StaticResource CardTitle}" />
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextFaintBrush}" FontSize="12" Margin="0,0,0,12"
+                               Text="Vie suosikit, piilotukset, järjestykset, katselukohdat, muistutukset, ajastetut tallennukset ja asetukset tiedostoon – esimerkiksi toiselle koneelle siirtoa varten. Salasana ei sisälly varmuuskopioon." />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Vie varmuuskopio…" Margin="0,0,10,0" Command="{Binding ExportBackupCommand}" />
+                        <Button Content="Tuo varmuuskopio…" Command="{Binding ImportBackupCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
                     <TextBlock Text="Tiedot" Style="{StaticResource CardTitle}" />
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Tyhjennä katseluhistoria" Command="{Binding ClearHistoryCommand}" Margin="0,0,10,0" />

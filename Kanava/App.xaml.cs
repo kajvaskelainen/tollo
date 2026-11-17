@@ -21,6 +21,7 @@ public partial class App : Application
         var settings = new SettingsStore();
         settings.Load();
         _player = new PlayerService();
+        PlayerService.NormalizeAudio = settings.Settings.NormalizeAudio;
         _main = new MainViewModel(settings, _player);
 
         var window = new MainWindow { DataContext = _main };

@@ -125,7 +125,9 @@ public sealed class EpgService
                 Publish(provider: Parse(_file), external: null);
                 LastUpdated = fi.LastWriteTime;
             }
-            if (force || !(fi.Exists && fi.Length > 0 && DateTime.Now - fi.LastWriteTime < MaxAge))
+            // M3U-soittolistalla ei välttämättä ole opasta (url-tvg) – silloin vain ulkoiset lähteet
+            var hasProviderGuide = _client.XmltvUrl().Length > 0;
+            if (hasProviderGuide && (force || !(fi.Exists && fi.Length > 0 && DateTime.Now - fi.LastWriteTime < MaxAge)))
             {
                 try
                 {

@@ -11,7 +11,9 @@ public sealed class AppSession
         Account = account;
         Settings = settings;
         Player = player;
-        Client = new XtreamClient(credentials);
+        Client = XtreamClient.Create(credentials);
+        if (!string.IsNullOrEmpty(account.ServerTimeZone))
+            try { Client.ServerTimeZone = TimeZoneInfo.FindSystemTimeZoneById(account.ServerTimeZone); } catch { }
         UserData = new UserDataStore(credentials.ProfileKey);
         Epg = new EpgService(Client, settings, credentials.ProfileKey);
     }

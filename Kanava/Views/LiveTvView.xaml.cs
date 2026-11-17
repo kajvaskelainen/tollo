@@ -41,6 +41,18 @@ public partial class LiveTvView : UserControl
             item => _vm is { IsReorderMode: true, CanReorderChannels: true } && item is LiveChannel,
             (item, target) => _vm?.MoveChannel((LiveChannel)item, target as LiveChannel));
         CategoryOrderUi.Attach(CategoryList, () => _vm?.CategoryOrder);
+
+        // TV-opas: jälkikatselu ja muistutukset
+        Guide.IsReminded = (ch, p) => _vm?.Session.UserData.IsReminded(ch.StreamId, p.Start) == true;
+        Guide.IsRecorded = (ch, p) => Main?.Recordings?.IsScheduled(ch.StreamId, p.Start) == true;
+        Guide.ProgramMenuRequested += OnProgramMenu;
+        Guide.ProgramActivated = (ch, p) =>
+        {
+            // Tuplaklikkaus päättyneeseen arkisto-ohjelmaan → jälkikatselu
+            if (p.End > DateTime.Now || !Controls.EpgGrid.CatchupAvailable(ch, p, DateTime.Now)) return false;
+            PlayCatchup(ch, p);
+            return true;
+        };
     }
 
     /// <summary>
@@ -69,6 +81,80 @@ public partial class LiveTvView : UserControl
     private const int WS_EX_TRANSPARENT = 0x20;
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr h, int i);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int i, int v);
+
+    private void PlayCatchup(LiveChannel ch, EpgProgram p)
+    {
+        if (_vm is null || Window.GetWindow(this)?.DataContext is not MainViewModel main) return;
+        main.PlayVod(_vm.CatchupRequest(ch, p));
+    }
+
+    private void OnProgramMenu(LiveChannel ch, EpgProgram p)
+    {
+        if (_vm is not { } vm) return;
+        var now = DateTime.Now;
+        var menu = new ContextMenu();
+        menu.Items.Add(new MenuItem { Header = $"{p.Title}  ·  {p.Start:ddd d.M. HH.mm}", IsEnabled = false, FontWeight = FontWeights.SemiBold });
+
+        MenuItem Item(string header, string glyph, Action action)
+        {
+            var mi = new MenuItem { Header = header, Icon = new TextBlock { Text = glyph, FontFamily = (FontFamily)FindResource("IconFont"), FontSize = 13 } };
+            mi.Click += (_, _) => action();
+            return mi;
+        }
+
+        if (Controls.EpgGrid.CatchupAvailable(ch, p, now))
+            menu.Items.Add(Item(p.End > now ? "Katso alusta (jälkikatselu)" : "Katso jälkikatseluna", "", () => PlayCatchup(ch, p)));
+        else if (p.End <= now)
+            menu.Items.Add(new MenuItem { Header = ch.HasArchive ? "Ohjelma ei ole enää arkistossa" : "Kanavalla ei ole jälkikatselua", IsEnabled = false });
+
+        if (p.IsNow(now) || p.Start > now)
+            menu.Items.Add(Item("Katso kanavaa nyt", "", () => vm.SelectAndPlay(ch)));
+
+        if (p.End > now && Main?.Recordings is { } recs)
+        {
+            var scheduled = recs.IsScheduled(ch.StreamId, p.Start);
+            menu.Items.Add(Item(scheduled ? "Peru tallennus" : "Tallenna ohjelma", "\uE7C8", () =>
+            {
+                var set = recs.ToggleSchedule(ch, p);
+                vm.Playback.ShowOsd(set ? $"Tallennus ajastettu: {p.Title} {p.Start:HH.mm}" : "Tallennus peruttu");
+                vm.RefreshRecording();
+                Guide.InvalidateGuide();
+            }));
+        }
+
+        if (p.Start > now)
+        {
+            var on = vm.Session.UserData.IsReminded(ch.StreamId, p.Start);
+            menu.Items.Add(Item(on ? "Peru muistutus" : "Muistuta 5 min ennen alkua", "", () =>
+            {
+                var set = vm.Session.UserData.ToggleReminder(ch, p);
+                vm.Playback.ShowOsd(set ? $"Muistutus: {p.Title} {p.Start:HH.mm}" : "Muistutus peruttu");
+                Guide.InvalidateGuide();
+            }));
+        }
+        menu.PlacementTarget = Guide;
+        menu.IsOpen = true;
+    }
+
+    private MainViewModel? Main => Window.GetWindow(this)?.DataContext as MainViewModel;
+
+    private void OnMultiview(object sender, RoutedEventArgs e) => (Window.GetWindow(this) as MainWindow)?.OpenMultiview();
+
+    private void OnRecord(object sender, RoutedEventArgs e)
+    {
+        if (_vm?.PlayingChannel is not { } ch || Main?.Recordings is not { } recs) return;
+        if (recs.ActiveFor(ch.StreamId) is { } active)
+        {
+            recs.Cancel(active.Id);
+            _vm.Playback.ShowOsd("Tallennus lopetettu – tiedosto: " + System.IO.Path.GetFileName(active.File));
+        }
+        else
+        {
+            var r = recs.RecordNow(ch);
+            _vm.Playback.ShowOsd(r.Status == "Failed" ? "Tallennus epäonnistui: " + r.Error : $"Tallennetaan: {ch.Name}");
+        }
+        _vm.RefreshRecording();
+    }
 
     private void OnPip(object sender, RoutedEventArgs e) => (Window.GetWindow(this) as MainWindow)?.OpenPipManually();
 

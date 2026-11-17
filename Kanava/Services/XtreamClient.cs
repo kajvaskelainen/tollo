@@ -13,7 +13,7 @@ public sealed class XtreamException(string message, Exception? inner = null) : E
 }
 
 /// <summary>Xtream Codes -rajapinnan asiakas (player_api.php).</summary>
-public sealed class XtreamClient
+public class XtreamClient
 {
     public static readonly HttpClient Http = CreateHttp();
 
@@ -33,6 +33,10 @@ public sealed class XtreamClient
     public Credentials Credentials { get; }
 
     public XtreamClient(Credentials credentials) => Credentials = credentials;
+
+    /// <summary>Oikea asiakas tilin tyypin mukaan: Xtream Codes tai M3U-soittolista.</summary>
+    public static XtreamClient Create(Credentials credentials) =>
+        credentials.IsM3u ? new M3uClient(credentials) : new XtreamClient(credentials);
 
     private string Api(string action, string extra = "")
     {
@@ -62,7 +66,7 @@ public sealed class XtreamClient
 
     // ---------- Kirjautuminen ----------
 
-    public async Task<AccountInfo> LoginAsync(CancellationToken ct = default)
+    public virtual async Task<AccountInfo> LoginAsync(CancellationToken ct = default)
     {
         using var doc = await GetJsonAsync(Api(""), ct).ConfigureAwait(false);
         var root = doc.RootElement;
@@ -75,8 +79,11 @@ public sealed class XtreamClient
         if (ui.TryGetProperty("allowed_output_formats", out var f) && f.ValueKind == JsonValueKind.Array)
             formats.AddRange(f.EnumerateArray().Select(x => x.ToString()));
 
+        var tz = root.TryGetProperty("server_info", out var si) && si.ValueKind == JsonValueKind.Object ? si.Str("timezone") : "";
+
         return new AccountInfo
         {
+            ServerTimeZone = tz,
             Username = ui.Str("username"),
             Status = ui.Str("status"),
             ExpiresAt = ui.UnixTime("exp_date"),
@@ -89,9 +96,9 @@ public sealed class XtreamClient
 
     // ---------- Kategoriat ----------
 
-    public Task<List<Category>> GetLiveCategoriesAsync(CancellationToken ct = default) => GetCategoriesAsync("get_live_categories", ct);
-    public Task<List<Category>> GetVodCategoriesAsync(CancellationToken ct = default) => GetCategoriesAsync("get_vod_categories", ct);
-    public Task<List<Category>> GetSeriesCategoriesAsync(CancellationToken ct = default) => GetCategoriesAsync("get_series_categories", ct);
+    public virtual Task<List<Category>> GetLiveCategoriesAsync(CancellationToken ct = default) => GetCategoriesAsync("get_live_categories", ct);
+    public virtual Task<List<Category>> GetVodCategoriesAsync(CancellationToken ct = default) => GetCategoriesAsync("get_vod_categories", ct);
+    public virtual Task<List<Category>> GetSeriesCategoriesAsync(CancellationToken ct = default) => GetCategoriesAsync("get_series_categories", ct);
 
     private async Task<List<Category>> GetCategoriesAsync(string action, CancellationToken ct)
     {
@@ -104,7 +111,7 @@ public sealed class XtreamClient
 
     // ---------- Live ----------
 
-    public async Task<List<LiveChannel>> GetLiveStreamsAsync(CancellationToken ct = default)
+    public virtual async Task<List<LiveChannel>> GetLiveStreamsAsync(CancellationToken ct = default)
     {
         using var doc = await GetJsonAsync(Api("get_live_streams"), ct).ConfigureAwait(false);
         return doc.RootElement.Items()
@@ -117,13 +124,14 @@ public sealed class XtreamClient
                 EpgChannelId = e.StrOrNull("epg_channel_id"),
                 CategoryId = e.Str("category_id"),
                 HasArchive = e.Int("tv_archive") == 1,
+                ArchiveDays = e.Int("tv_archive_duration"),
             })
             .Where(c => c.StreamId > 0)
             .ToList();
     }
 
     /// <summary>Kanavan "nyt / seuraavaksi" -tiedot.</summary>
-    public async Task<List<EpgProgram>> GetShortEpgAsync(int streamId, int limit = 4, CancellationToken ct = default)
+    public virtual async Task<List<EpgProgram>> GetShortEpgAsync(int streamId, int limit = 4, CancellationToken ct = default)
     {
         using var doc = await GetJsonAsync(Api("get_short_epg", $"&stream_id={streamId}&limit={limit}"), ct).ConfigureAwait(false);
         var list = new List<EpgProgram>();
@@ -153,7 +161,7 @@ public sealed class XtreamClient
 
     // ---------- VOD ----------
 
-    public async Task<List<VodItem>> GetVodStreamsAsync(CancellationToken ct = default)
+    public virtual async Task<List<VodItem>> GetVodStreamsAsync(CancellationToken ct = default)
     {
         using var doc = await GetJsonAsync(Api("get_vod_streams"), ct).ConfigureAwait(false);
         return doc.RootElement.Items()
@@ -171,7 +179,7 @@ public sealed class XtreamClient
             .ToList();
     }
 
-    public async Task<VodDetails> GetVodInfoAsync(int vodId, CancellationToken ct = default)
+    public virtual async Task<VodDetails> GetVodInfoAsync(int vodId, CancellationToken ct = default)
     {
         using var doc = await GetJsonAsync(Api("get_vod_info", $"&vod_id={vodId}"), ct).ConfigureAwait(false);
         var root = doc.RootElement;
@@ -192,7 +200,7 @@ public sealed class XtreamClient
 
     // ---------- Sarjat ----------
 
-    public async Task<List<SeriesItem>> GetSeriesAsync(CancellationToken ct = default)
+    public virtual async Task<List<SeriesItem>> GetSeriesAsync(CancellationToken ct = default)
     {
         using var doc = await GetJsonAsync(Api("get_series"), ct).ConfigureAwait(false);
         return doc.RootElement.Items()
@@ -211,7 +219,7 @@ public sealed class XtreamClient
             .ToList();
     }
 
-    public async Task<SeriesDetails> GetSeriesInfoAsync(int seriesId, CancellationToken ct = default)
+    public virtual async Task<SeriesDetails> GetSeriesInfoAsync(int seriesId, CancellationToken ct = default)
     {
         using var doc = await GetJsonAsync(Api("get_series_info", $"&series_id={seriesId}"), ct).ConfigureAwait(false);
         var root = doc.RootElement;
@@ -269,25 +277,38 @@ public sealed class XtreamClient
 
     // ---------- URL:t ----------
 
-    public string LiveUrl(int streamId, string format = "ts")
+    public virtual string LiveUrl(int streamId, string format = "ts")
     {
         var c = Credentials;
         return $"{c.BaseUrl}/live/{Uri.EscapeDataString(c.Username)}/{Uri.EscapeDataString(c.Password)}/{streamId}.{format}";
     }
 
-    public string MovieUrl(int streamId, string ext)
+    public virtual string MovieUrl(int streamId, string ext)
     {
         var c = Credentials;
         return $"{c.BaseUrl}/movie/{Uri.EscapeDataString(c.Username)}/{Uri.EscapeDataString(c.Password)}/{streamId}.{ext}";
     }
 
-    public string EpisodeUrl(string episodeId, string ext)
+    public virtual string EpisodeUrl(string episodeId, string ext)
     {
         var c = Credentials;
         return $"{c.BaseUrl}/series/{Uri.EscapeDataString(c.Username)}/{Uri.EscapeDataString(c.Password)}/{episodeId}.{ext}";
     }
 
-    public string XmltvUrl()
+    /// <summary>Palvelimen aikavyöhyke (jälkikatselun aloitusaika ilmoitetaan palvelimen ajassa).</summary>
+    public TimeZoneInfo? ServerTimeZone { get; set; }
+
+    /// <summary>
+    /// Jälkikatselu (catch-up / timeshift): /timeshift/{user}/{pass}/{kesto min}/{YYYY-MM-DD:HH-MM}/{id}.ts
+    /// </summary>
+    public virtual string TimeshiftUrl(int streamId, DateTime startLocal, int durationMinutes)
+    {
+        var c = Credentials;
+        var start = ServerTimeZone is { } tz ? TimeZoneInfo.ConvertTime(startLocal, TimeZoneInfo.Local, tz) : startLocal;
+        return $"{c.BaseUrl}/timeshift/{Uri.EscapeDataString(c.Username)}/{Uri.EscapeDataString(c.Password)}/{durationMinutes}/{start:yyyy-MM-dd:HH-mm}/{streamId}.ts";
+    }
+
+    public virtual string XmltvUrl()
     {
         var c = Credentials;
         return $"{c.BaseUrl}/xmltv.php?username={Uri.EscapeDataString(c.Username)}&password={Uri.EscapeDataString(c.Password)}";

@@ -78,6 +78,19 @@ public sealed class AppSettings
     public string PipSize { get; set; } = "m";
     public bool PipTopmost { get; set; } = true;
 
+    /// <summary>Äänen viive millisekunteina avaimittain ("live:123", "vod:hash"); + = ääni myöhemmin.</summary>
+    public Dictionary<string, int> AudioDelays { get; set; } = new();
+    /// <summary>Äänenvoimakkuuden tasoitus (mainokset eivät huuda).</summary>
+    public bool NormalizeAudio { get; set; }
+
+    /// <summary>Tallennusten kansio ("" = Videot\Töllö).</summary>
+    public string RecordingFolder { get; set; } = "";
+
+    /// <summary>Tallennetut tilit (Xtream ja M3U).</summary>
+    public List<SavedAccount> Accounts { get; set; } = [];
+    /// <summary>Tili, jolla kirjaudutaan automaattisesti käynnistyksessä.</summary>
+    public string? AutoLoginAccountId { get; set; }
+
     /// <summary>Ulkoiset XMLTV-oppaat (täydentävät palveluntarjoajan opasta).</summary>
     public List<EpgSource> EpgSources { get; set; } = [];
 }
@@ -108,7 +121,11 @@ public sealed class SettingsStore
                 Settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(AppPaths.SettingsFile)) ?? new();
         }
         catch { Settings = new(); }
+        MigrateAccounts();
     }
+
+    /// <summary>Korvaa asetukset (varmuuskopion palautus).</summary>
+    public void Replace(AppSettings settings) => Settings = settings;
 
     public void Save()
     {
@@ -117,33 +134,93 @@ public sealed class SettingsStore
         File.Move(tmp, AppPaths.SettingsFile, overwrite: true);
     }
 
-    public Credentials? GetSavedCredentials()
+    // ---------- Tilit ----------
+
+    private static string Protect(string password) =>
+        Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(password), Entropy, DataProtectionScope.CurrentUser));
+
+    private static string? Unprotect(string? data)
+    {
+        if (string.IsNullOrEmpty(data)) return null;
+        try { return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(data), Entropy, DataProtectionScope.CurrentUser)); }
+        catch { return null; }
+    }
+
+    /// <summary>Vanha yhden tilin asetus → tililista (ensimmäinen käynnistys uudella versiolla).</summary>
+    private void MigrateAccounts()
     {
         var s = Settings;
-        if (string.IsNullOrEmpty(s.ServerUrl) || string.IsNullOrEmpty(s.Username) || string.IsNullOrEmpty(s.PasswordProtected))
-            return null;
-        try
-        {
-            var bytes = ProtectedData.Unprotect(Convert.FromBase64String(s.PasswordProtected), Entropy, DataProtectionScope.CurrentUser);
-            return new Credentials { ServerUrl = s.ServerUrl, Username = s.Username, Password = Encoding.UTF8.GetString(bytes) };
-        }
-        catch { return null; }
+        if (s.Accounts.Count > 0 || string.IsNullOrEmpty(s.ServerUrl) || string.IsNullOrEmpty(s.Username)) return;
+        var a = new SavedAccount { ServerUrl = s.ServerUrl, Username = s.Username, PasswordProtected = s.PasswordProtected, LastUsed = DateTime.Now };
+        s.Accounts.Add(a);
+        if (!string.IsNullOrEmpty(s.PasswordProtected) && s.RememberLogin) s.AutoLoginAccountId = a.Id;
+    }
+
+    public IReadOnlyList<SavedAccount> Accounts => Settings.Accounts.OrderByDescending(a => a.LastUsed).ToList();
+
+    /// <summary>Tilin tunnukset; null, jos Xtream-tilin salasanaa ei ole tallennettu.</summary>
+    public Credentials? GetCredentials(SavedAccount a)
+    {
+        var password = a.Kind == "m3u" ? "" : Unprotect(a.PasswordProtected);
+        if (password is null) return null;
+        return new Credentials { Kind = a.Kind, Name = a.Name, ServerUrl = a.ServerUrl, Username = a.Username, Password = password };
+    }
+
+    public SavedAccount? FindAccount(string kind, string serverUrl, string username) =>
+        Settings.Accounts.FirstOrDefault(a => a.Kind == kind && a.Username == username &&
+                                              string.Equals(a.ServerUrl.TrimEnd('/'), serverUrl.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Automaattisen kirjautumisen tili (viimeksi käytetty, jos "Muista kirjautuminen").</summary>
+    public Credentials? GetSavedCredentials()
+    {
+        var a = Settings.Accounts.FirstOrDefault(x => x.Id == Settings.AutoLoginAccountId);
+        return a is null ? null : GetCredentials(a);
     }
 
     public void SaveCredentials(Credentials c, bool remember)
     {
-        Settings.ServerUrl = c.ServerUrl;
-        Settings.Username = c.Username;
+        var a = FindAccount(c.Kind, c.ServerUrl, c.Username);
+        if (a is null) { a = new SavedAccount { Kind = c.Kind, ServerUrl = c.ServerUrl, Username = c.Username }; Settings.Accounts.Add(a); }
+        if (c.Name.Length > 0) a.Name = c.Name;
+        a.LastUsed = DateTime.Now;
+        a.PasswordProtected = c.IsM3u ? null : remember ? Protect(c.Password) : null;
         Settings.RememberLogin = remember;
-        Settings.PasswordProtected = remember
-            ? Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(c.Password), Entropy, DataProtectionScope.CurrentUser))
-            : null;
+        Settings.AutoLoginAccountId = remember ? a.Id : null;
+        // Vanhat kentät (yhteensopivuus aiempien versioiden kanssa)
+        if (!c.IsM3u)
+        {
+            Settings.ServerUrl = c.ServerUrl;
+            Settings.Username = c.Username;
+            Settings.PasswordProtected = a.PasswordProtected;
+        }
         Save();
     }
 
+    public void RemoveAccount(string id)
+    {
+        Settings.Accounts.RemoveAll(a => a.Id == id);
+        if (Settings.AutoLoginAccountId == id) Settings.AutoLoginAccountId = null;
+        Save();
+    }
+
+    /// <summary>Uloskirjautuminen: ei automaattista kirjautumista seuraavalla käynnistyksellä (tili ja salasana säilyvät listassa).</summary>
     public void ClearPassword()
     {
+        Settings.AutoLoginAccountId = null;
         Settings.PasswordProtected = null;
         Save();
     }
+}
+
+/// <summary>Tallennettu tili (Xtream Codes tai M3U-soittolista).</summary>
+public sealed class SavedAccount
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..10];
+    public string Kind { get; set; } = "xtream";
+    public string Name { get; set; } = "";
+    public string ServerUrl { get; set; } = "";
+    public string Username { get; set; } = "";
+    /// <summary>Salasana DPAPI:lla salattuna (null = ei muistettu).</summary>
+    public string? PasswordProtected { get; set; }
+    public DateTime LastUsed { get; set; }
 }
